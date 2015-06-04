@@ -1,0 +1,323 @@
+GET:  0A
+GET:  00 05
+GET:  4C 65 76 65 6C
+GET:  04
+GET:  00 08
+GET:  6C 6F 6E 67 54 65 73 74
+GET:  7F FF FF FF FF FF FF FF
+GET:  02
+GET:  00 09
+GET:  73 68 6F 72 74 54 65 73 74
+GET:  7F FF
+GET:  08
+GET:  00 0A
+GET:  73 74 72 69 6E 67 54 65 73 74
+GET:  00 29
+GET:  48 45 4C 4C 4F 20 57 4F 52 4C 44 20 54 48 49 53 20 49 53 20 41 20 54 45 53 54 20 53 54 52 49 4E 47 20 C3 85 C3 84 C3 96 21
+GET:  05
+GET:  00 09
+GET:  66 6C 6F 61 74 54 65 73 74
+GET:  3E FF 18 32
+GET:  03
+GET:  00 07
+GET:  69 6E 74 54 65 73 74
+GET:  7F FF FF FF
+GET:  0A
+GET:  00 14
+GET:  6E 65 73 74 65 64 20 63 6F 6D 70 6F 75 6E 64 20 74 65 73 74
+GET:  0A
+GET:  00 03
+GET:  68 61 6D
+GET:  08
+GET:  00 04
+GET:  6E 61 6D 65
+GET:  00 06
+GET:  48 61 6D 70 75 73
+GET:  05
+GET:  00 05
+GET:  76 61 6C 75 65
+GET:  3F 40 00 00
+GET:  00
+GET:  0A
+GET:  00 03
+GET:  65 67 67
+GET:  08
+GET:  00 04
+GET:  6E 61 6D 65
+GET:  00 07
+GET:  45 67 67 62 65 72 74
+GET:  05
+GET:  00 05
+GET:  76 61 6C 75 65
+GET:  3F 00 00 00
+GET:  00
+GET:  00
+GET:  09
+GET:  00 0F
+GET:  6C 69 73 74 54 65 73 74 20 28 6C 6F 6E 67 29
+GET:  04
+GET:  00 00 00 05
+GET:  00 00 00 00 00 00 00 0B
+GET:  00 00 00 00 00 00 00 0C
+GET:  00 00 00 00 00 00 00 0D
+GET:  00 00 00 00 00 00 00 0E
+GET:  00 00 00 00 00 00 00 0F
+GET:  09
+GET:  00 13
+GET:  6C 69 73 74 54 65 73 74 20 28 63 6F 6D 70 6F 75 6E 64 29
+GET:  0A
+GET:  00 00 00 02
+GET:  08
+GET:  00 04
+GET:  6E 61 6D 65
+GET:  00 0F
+GET:  43 6F 6D 70 6F 75 6E 64 20 74 61 67 20 23 30
+GET:  04
+GET:  00 0A
+GET:  63 72 65 61 74 65 64 2D 6F 6E
+GET:  00 00 01 26 52 37 D5 8D
+GET:  00
+GET:  08
+GET:  00 04
+GET:  6E 61 6D 65
+GET:  00 0F
+GET:  43 6F 6D 70 6F 75 6E 64 20 74 61 67 20 23 31
+GET:  04
+GET:  00 0A
+GET:  63 72 65 61 74 65 64 2D 6F 6E
+GET:  00 00 01 26 52 37 D5 8D
+GET:  00
+GET:  01
+GET:  00 08
+GET:  62 79 74 65 54 65 73 74
+GET:  7F
+GET:  07
+GET:  00 65
+GET:  62 79 74 65 41 72 72 61 79 54 65 73 74 20 28 74 68 65 20 66 69 72 73 74 20 31 30 30 30 20 76 61 6C 75 65 73 20 6F 66 20 28 6E 2A 6E 2A 32 35 35 2B 6E 2A 37 29 25 31 30 30 2C 20 73 74 61 72 74 69 6E 67 20 77 69 74 68 20 6E 3D 30 20 28 30 2C 20 36 32 2C 20 33 34 2C 20 31 36 2C 20 38 2C 20 2E 2E 2E 29 29
+GET:  00 00 03 E8
+GET:  00 3E 22 10 08 0A 16 2C 4C 12 46 20 04 56 4E 50 5C 0E 2E 58 28 02 4A 38 30 32 3E 54 10 3A 0A 48 2C 1A 12 14 20 36 56 1C 50 2A 0E 60 58 5A 02 18 38 62 32 0C 54 42 3A 3C 48 5E 1A 44 14 52 36 24 1C 1E 2A 40 60 26 5A 34 18 06 62 00 0C 22 42 08 3C 16 5E 4C 44 46 52 04 24 4E 1E 5C 40 2E 26 28 34 4A 06 30 00 3E 22 10 08 0A 16 2C 4C 12 46 20 04 56 4E 50 5C 0E 2E 58 28 02 4A 38 30 32 3E 54 10 3A 0A 48 2C 1A 12 14 20 36 56 1C 50 2A 0E 60 58 5A 02 18 38 62 32 0C 54 42 3A 3C 48 5E 1A 44 14 52 36 24 1C 1E 2A 40 60 26 5A 34 18 06 62 00 0C 22 42 08 3C 16 5E 4C 44 46 52 04 24 4E 1E 5C 40 2E 26 28 34 4A 06 30 00 3E 22 10 08 0A 16 2C 4C 12 46 20 04 56 4E 50 5C 0E 2E 58 28 02 4A 38 30 32 3E 54 10 3A 0A 48 2C 1A 12 14 20 36 56 1C 50 2A 0E 60 58 5A 02 18 38 62 32 0C 54 42 3A 3C 48 5E 1A 44 14 52 36 24 1C 1E 2A 40 60 26 5A 34 18 06 62 00 0C 22 42 08 3C 16 5E 4C 44 46 52 04 24 4E 1E 5C 40 2E 26 28 34 4A 06 30 00 3E 22 10 08 0A 16 2C 4C 12 46 20 04 56 4E 50 5C 0E 2E 58 28 02 4A 38 30 32 3E 54 10 3A 0A 48 2C 1A 12 14 20 36 56 1C 50 2A 0E 60 58 5A 02 18 38 62 32 0C 54 42 3A 3C 48 5E 1A 44 14 52 36 24 1C 1E 2A 40 60 26 5A 34 18 06 62 00 0C 22 42 08 3C 16 5E 4C 44 46 52 04 24 4E 1E 5C 40 2E 26 28 34 4A 06 30 00 3E 22 10 08 0A 16 2C 4C 12 46 20 04 56 4E 50 5C 0E 2E 58 28 02 4A 38 30 32 3E 54 10 3A 0A 48 2C 1A 12 14 20 36 56 1C 50 2A 0E 60 58 5A 02 18 38 62 32 0C 54 42 3A 3C 48 5E 1A 44 14 52 36 24 1C 1E 2A 40 60 26 5A 34 18 06 62 00 0C 22 42 08 3C 16 5E 4C 44 46 52 04 24 4E 1E 5C 40 2E 26 28 34 4A 06 30 00 3E 22 10 08 0A 16 2C 4C 12 46 20 04 56 4E 50 5C 0E 2E 58 28 02 4A 38 30 32 3E 54 10 3A 0A 48 2C 1A 12 14 20 36 56 1C 50 2A 0E 60 58 5A 02 18 38 62 32 0C 54 42 3A 3C 48 5E 1A 44 14 52 36 24 1C 1E 2A 40 60 26 5A 34 18 06 62 00 0C 22 42 08 3C 16 5E 4C 44 46 52 04 24 4E 1E 5C 40 2E 26 28 34 4A 06 30 00 3E 22 10 08 0A 16 2C 4C 12 46 20 04 56 4E 50 5C 0E 2E 58 28 02 4A 38 30 32 3E 54 10 3A 0A 48 2C 1A 12 14 20 36 56 1C 50 2A 0E 60 58 5A 02 18 38 62 32 0C 54 42 3A 3C 48 5E 1A 44 14 52 36 24 1C 1E 2A 40 60 26 5A 34 18 06 62 00 0C 22 42 08 3C 16 5E 4C 44 46 52 04 24 4E 1E 5C 40 2E 26 28 34 4A 06 30 00 3E 22 10 08 0A 16 2C 4C 12 46 20 04 56 4E 50 5C 0E 2E 58 28 02 4A 38 30 32 3E 54 10 3A 0A 48 2C 1A 12 14 20 36 56 1C 50 2A 0E 60 58 5A 02 18 38 62 32 0C 54 42 3A 3C 48 5E 1A 44 14 52 36 24 1C 1E 2A 40 60 26 5A 34 18 06 62 00 0C 22 42 08 3C 16 5E 4C 44 46 52 04 24 4E 1E 5C 40 2E 26 28 34 4A 06 30 00 3E 22 10 08 0A 16 2C 4C 12 46 20 04 56 4E 50 5C 0E 2E 58 28 02 4A 38 30 32 3E 54 10 3A 0A 48 2C 1A 12 14 20 36 56 1C 50 2A 0E 60 58 5A 02 18 38 62 32 0C 54 42 3A 3C 48 5E 1A 44 14 52 36 24 1C 1E 2A 40 60 26 5A 34 18 06 62 00 0C 22 42 08 3C 16 5E 4C 44 46 52 04 24 4E 1E 5C 40 2E 26 28 34 4A 06 30 00 3E 22 10 08 0A 16 2C 4C 12 46 20 04 56 4E 50 5C 0E 2E 58 28 02 4A 38 30 32 3E 54 10 3A 0A 48 2C 1A 12 14 20 36 56 1C 50 2A 0E 60 58 5A 02 18 38 62 32 0C 54 42 3A 3C 48 5E 1A 44 14 52 36 24 1C 1E 2A 40 60 26 5A 34 18 06 62 00 0C 22 42 08 3C 16 5E 4C 44 46 52 04 24 4E 1E 5C 40 2E 26 28 34 4A 06 30
+GET:  06
+GET:  00 0A
+GET:  64 6F 75 62 6C 65 54 65 73 74
+GET:  3F DF 8F 6B BB FF 6A 5E
+GET:  00
+$VAR1 = bless( {
+                 'name' => 'Level',
+                 'children' => {
+                                 'shortTest' => bless( {
+                                                         'value' => 32767,
+                                                         'name' => 'shortTest'
+                                                       }, 'Minecraft::NBT::Short' ),
+                                 'doubleTest' => bless( {
+                                                          'value' => '0.493128713218231',
+                                                          'name' => 'doubleTest'
+                                                        }, 'Minecraft::NBT::Double' ),
+                                 'longTest' => bless( {
+                                                        'value' => '9223372036854775807',
+                                                        'name' => 'longTest'
+                                                      }, 'Minecraft::NBT::Long' ),
+                                 'stringTest' => bless( {
+                                                          'value' => 'HELLO WORLD THIS IS A TEST STRING ÅÄÖ!',
+                                                          'name' => 'stringTest'
+                                                        }, 'Minecraft::NBT::String' ),
+                                 'nested compound test' => bless( {
+                                                                    'name' => 'nested compound test',
+                                                                    'children' => {
+                                                                                    'ham' => bless( {
+                                                                                                      'name' => 'ham',
+                                                                                                      'children' => {
+                                                                                                                      'value' => bless( {
+                                                                                                                                          'value' => '0.75',
+                                                                                                                                          'name' => 'value'
+                                                                                                                                        }, 'Minecraft::NBT::Float' ),
+                                                                                                                      'name' => bless( {
+                                                                                                                                         'value' => 'Hampus',
+                                                                                                                                         'name' => 'name'
+                                                                                                                                       }, 'Minecraft::NBT::String' )
+                                                                                                                    }
+                                                                                                    }, 'Minecraft::NBT::Compound' ),
+                                                                                    'egg' => bless( {
+                                                                                                      'name' => 'egg',
+                                                                                                      'children' => {
+                                                                                                                      'value' => bless( {
+                                                                                                                                          'value' => '0.5',
+                                                                                                                                          'name' => 'value'
+                                                                                                                                        }, 'Minecraft::NBT::Float' ),
+                                                                                                                      'name' => bless( {
+                                                                                                                                         'value' => 'Eggbert',
+                                                                                                                                         'name' => 'name'
+                                                                                                                                       }, 'Minecraft::NBT::String' )
+                                                                                                                    }
+                                                                                                    }, 'Minecraft::NBT::Compound' )
+                                                                                  }
+                                                                  }, 'Minecraft::NBT::Compound' ),
+                                 'floatTest' => bless( {
+                                                         'value' => '0.498231470584869',
+                                                         'name' => 'floatTest'
+                                                       }, 'Minecraft::NBT::Float' ),
+                                 'byteArrayTest (the first 1000 values of (n*n*255+n*7)%100, starting with n=0 (0, 62, 34, 16, 8, ...))' => bless( {
+                                                                                                                                                     'length' => 1000,
+                                                                                                                                                     'value' => ' >"
+,LF VNP\\.X(J802>T:
+H, 6VP*`XZ8b2TB:<H^DR6$*@`&Z4b "B<^LDFR$N\\@.&(4J0 >"
+,LF VNP\\.X(J802>T:
+H, 6VP*`XZ8b2TB:<H^DR6$*@`&Z4b "B<^LDFR$N\\@.&(4J0 >"
+,LF VNP\\.X(J802>T:
+H, 6VP*`XZ8b2TB:<H^DR6$*@`&Z4b "B<^LDFR$N\\@.&(4J0 >"
+,LF VNP\\.X(J802>T:
+H, 6VP*`XZ8b2TB:<H^DR6$*@`&Z4b "B<^LDFR$N\\@.&(4J0 >"
+,LF VNP\\.X(J802>T:
+H, 6VP*`XZ8b2TB:<H^DR6$*@`&Z4b "B<^LDFR$N\\@.&(4J0 >"
+,LF VNP\\.X(J802>T:
+H, 6VP*`XZ8b2TB:<H^DR6$*@`&Z4b "B<^LDFR$N\\@.&(4J0 >"
+,LF VNP\\.X(J802>T:
+H, 6VP*`XZ8b2TB:<H^DR6$*@`&Z4b "B<^LDFR$N\\@.&(4J0 >"
+,LF VNP\\.X(J802>T:
+H, 6VP*`XZ8b2TB:<H^DR6$*@`&Z4b "B<^LDFR$N\\@.&(4J0 >"
+,LF VNP\\.X(J802>T:
+H, 6VP*`XZ8b2TB:<H^DR6$*@`&Z4b "B<^LDFR$N\\@.&(4J0 >"
+,LF VNP\\.X(J802>T:
+H, 6VP*`XZ8b2TB:<H^DR6$*@`&Z4b "B<^LDFR$N\\@.&(4J0',
+                                                                                                                                                     'name' => 'byteArrayTest (the first 1000 values of (n*n*255+n*7)%100, starting with n=0 (0, 62, 34, 16, 8, ...))'
+                                                                                                                                                   }, 'Minecraft::NBT::ByteArray' ),
+                                 'intTest' => bless( {
+                                                       'value' => 2147483647,
+                                                       'name' => 'intTest'
+                                                     }, 'Minecraft::NBT::Int' ),
+                                 'listTest (long)' => bless( {
+                                                               'length' => 5,
+                                                               'value' => [
+                                                                            bless( {
+                                                                                     'value' => 11
+                                                                                   }, 'Minecraft::NBT::Long' ),
+                                                                            bless( {
+                                                                                     'value' => 12
+                                                                                   }, 'Minecraft::NBT::Long' ),
+                                                                            bless( {
+                                                                                     'value' => 13
+                                                                                   }, 'Minecraft::NBT::Long' ),
+                                                                            bless( {
+                                                                                     'value' => 14
+                                                                                   }, 'Minecraft::NBT::Long' ),
+                                                                            bless( {
+                                                                                     'value' => 15
+                                                                                   }, 'Minecraft::NBT::Long' )
+                                                                          ],
+                                                               'name' => 'listTest (long)',
+                                                               'type' => 4
+                                                             }, 'Minecraft::NBT::TagList' ),
+                                 'listTest (compound)' => bless( {
+                                                                   'length' => 2,
+                                                                   'value' => [
+                                                                                bless( {
+                                                                                         'children' => {
+                                                                                                         'created-on' => bless( {
+                                                                                                                                  'value' => '1264099775885',
+                                                                                                                                  'name' => 'created-on'
+                                                                                                                                }, 'Minecraft::NBT::Long' ),
+                                                                                                         'name' => bless( {
+                                                                                                                            'value' => 'Compound tag #0',
+                                                                                                                            'name' => 'name'
+                                                                                                                          }, 'Minecraft::NBT::String' )
+                                                                                                       }
+                                                                                       }, 'Minecraft::NBT::Compound' ),
+                                                                                bless( {
+                                                                                         'children' => {
+                                                                                                         'created-on' => bless( {
+                                                                                                                                  'value' => '1264099775885',
+                                                                                                                                  'name' => 'created-on'
+                                                                                                                                }, 'Minecraft::NBT::Long' ),
+                                                                                                         'name' => bless( {
+                                                                                                                            'value' => 'Compound tag #1',
+                                                                                                                            'name' => 'name'
+                                                                                                                          }, 'Minecraft::NBT::String' )
+                                                                                                       }
+                                                                                       }, 'Minecraft::NBT::Compound' )
+                                                                              ],
+                                                                   'name' => 'listTest (compound)',
+                                                                   'type' => 10
+                                                                 }, 'Minecraft::NBT::TagList' ),
+                                 'byteTest' => bless( {
+                                                        'value' => 127,
+                                                        'name' => 'byteTest'
+                                                      }, 'Minecraft::NBT::Byte' )
+                               }
+               }, 'Minecraft::NBT::Compound' );
+PUT:  0A
+PUT:  00 05
+PUT:  4C 65 76 65 6C
+PUT:  02
+PUT:  00 09
+PUT:  73 68 6F 72 74 54 65 73 74
+PUT:  7F FF
+PUT:  06
+PUT:  00 0A
+PUT:  64 6F 75 62 6C 65 54 65 73 74
+PUT:  3F DF 8F 6B BB FF 6A 5E
+PUT:  04
+PUT:  00 08
+PUT:  6C 6F 6E 67 54 65 73 74
+PUT:  7F FF FF FF FF FF FF FF
+PUT:  08
+PUT:  00 0A
+PUT:  73 74 72 69 6E 67 54 65 73 74
+PUT:  00 29
+PUT:  48 45 4C 4C 4F 20 57 4F 52 4C 44 20 54 48 49 53 20 49 53 20 41 20 54 45 53 54 20 53 54 52 49 4E 47 20 C3 85 C3 84 C3 96 21
+PUT:  0A
+PUT:  00 14
+PUT:  6E 65 73 74 65 64 20 63 6F 6D 70 6F 75 6E 64 20 74 65 73 74
+PUT:  0A
+PUT:  00 03
+PUT:  68 61 6D
+PUT:  05
+PUT:  00 05
+PUT:  76 61 6C 75 65
+PUT:  3F 40 00 00
+PUT:  08
+PUT:  00 04
+PUT:  6E 61 6D 65
+PUT:  00 06
+PUT:  48 61 6D 70 75 73
+PUT:  00
+PUT:  0A
+PUT:  00 03
+PUT:  65 67 67
+PUT:  05
+PUT:  00 05
+PUT:  76 61 6C 75 65
+PUT:  3F 00 00 00
+PUT:  08
+PUT:  00 04
+PUT:  6E 61 6D 65
+PUT:  00 07
+PUT:  45 67 67 62 65 72 74
+PUT:  00
+PUT:  00
+PUT:  05
+PUT:  00 09
+PUT:  66 6C 6F 61 74 54 65 73 74
+PUT:  3E FF 18 32
+PUT:  07
+PUT:  00 65
+PUT:  62 79 74 65 41 72 72 61 79 54 65 73 74 20 28 74 68 65 20 66 69 72 73 74 20 31 30 30 30 20 76 61 6C 75 65 73 20 6F 66 20 28 6E 2A 6E 2A 32 35 35 2B 6E 2A 37 29 25 31 30 30 2C 20 73 74 61 72 74 69 6E 67 20 77 69 74 68 20 6E 3D 30 20 28 30 2C 20 36 32 2C 20 33 34 2C 20 31 36 2C 20 38 2C 20 2E 2E 2E 29 29
+PUT:  00 00 03 E8
+PUT:  00 3E 22 10 08 0A 16 2C 4C 12 46 20 04 56 4E 50 5C 0E 2E 58 28 02 4A 38 30 32 3E 54 10 3A 0A 48 2C 1A 12 14 20 36 56 1C 50 2A 0E 60 58 5A 02 18 38 62 32 0C 54 42 3A 3C 48 5E 1A 44 14 52 36 24 1C 1E 2A 40 60 26 5A 34 18 06 62 00 0C 22 42 08 3C 16 5E 4C 44 46 52 04 24 4E 1E 5C 40 2E 26 28 34 4A 06 30 00 3E 22 10 08 0A 16 2C 4C 12 46 20 04 56 4E 50 5C 0E 2E 58 28 02 4A 38 30 32 3E 54 10 3A 0A 48 2C 1A 12 14 20 36 56 1C 50 2A 0E 60 58 5A 02 18 38 62 32 0C 54 42 3A 3C 48 5E 1A 44 14 52 36 24 1C 1E 2A 40 60 26 5A 34 18 06 62 00 0C 22 42 08 3C 16 5E 4C 44 46 52 04 24 4E 1E 5C 40 2E 26 28 34 4A 06 30 00 3E 22 10 08 0A 16 2C 4C 12 46 20 04 56 4E 50 5C 0E 2E 58 28 02 4A 38 30 32 3E 54 10 3A 0A 48 2C 1A 12 14 20 36 56 1C 50 2A 0E 60 58 5A 02 18 38 62 32 0C 54 42 3A 3C 48 5E 1A 44 14 52 36 24 1C 1E 2A 40 60 26 5A 34 18 06 62 00 0C 22 42 08 3C 16 5E 4C 44 46 52 04 24 4E 1E 5C 40 2E 26 28 34 4A 06 30 00 3E 22 10 08 0A 16 2C 4C 12 46 20 04 56 4E 50 5C 0E 2E 58 28 02 4A 38 30 32 3E 54 10 3A 0A 48 2C 1A 12 14 20 36 56 1C 50 2A 0E 60 58 5A 02 18 38 62 32 0C 54 42 3A 3C 48 5E 1A 44 14 52 36 24 1C 1E 2A 40 60 26 5A 34 18 06 62 00 0C 22 42 08 3C 16 5E 4C 44 46 52 04 24 4E 1E 5C 40 2E 26 28 34 4A 06 30 00 3E 22 10 08 0A 16 2C 4C 12 46 20 04 56 4E 50 5C 0E 2E 58 28 02 4A 38 30 32 3E 54 10 3A 0A 48 2C 1A 12 14 20 36 56 1C 50 2A 0E 60 58 5A 02 18 38 62 32 0C 54 42 3A 3C 48 5E 1A 44 14 52 36 24 1C 1E 2A 40 60 26 5A 34 18 06 62 00 0C 22 42 08 3C 16 5E 4C 44 46 52 04 24 4E 1E 5C 40 2E 26 28 34 4A 06 30 00 3E 22 10 08 0A 16 2C 4C 12 46 20 04 56 4E 50 5C 0E 2E 58 28 02 4A 38 30 32 3E 54 10 3A 0A 48 2C 1A 12 14 20 36 56 1C 50 2A 0E 60 58 5A 02 18 38 62 32 0C 54 42 3A 3C 48 5E 1A 44 14 52 36 24 1C 1E 2A 40 60 26 5A 34 18 06 62 00 0C 22 42 08 3C 16 5E 4C 44 46 52 04 24 4E 1E 5C 40 2E 26 28 34 4A 06 30 00 3E 22 10 08 0A 16 2C 4C 12 46 20 04 56 4E 50 5C 0E 2E 58 28 02 4A 38 30 32 3E 54 10 3A 0A 48 2C 1A 12 14 20 36 56 1C 50 2A 0E 60 58 5A 02 18 38 62 32 0C 54 42 3A 3C 48 5E 1A 44 14 52 36 24 1C 1E 2A 40 60 26 5A 34 18 06 62 00 0C 22 42 08 3C 16 5E 4C 44 46 52 04 24 4E 1E 5C 40 2E 26 28 34 4A 06 30 00 3E 22 10 08 0A 16 2C 4C 12 46 20 04 56 4E 50 5C 0E 2E 58 28 02 4A 38 30 32 3E 54 10 3A 0A 48 2C 1A 12 14 20 36 56 1C 50 2A 0E 60 58 5A 02 18 38 62 32 0C 54 42 3A 3C 48 5E 1A 44 14 52 36 24 1C 1E 2A 40 60 26 5A 34 18 06 62 00 0C 22 42 08 3C 16 5E 4C 44 46 52 04 24 4E 1E 5C 40 2E 26 28 34 4A 06 30 00 3E 22 10 08 0A 16 2C 4C 12 46 20 04 56 4E 50 5C 0E 2E 58 28 02 4A 38 30 32 3E 54 10 3A 0A 48 2C 1A 12 14 20 36 56 1C 50 2A 0E 60 58 5A 02 18 38 62 32 0C 54 42 3A 3C 48 5E 1A 44 14 52 36 24 1C 1E 2A 40 60 26 5A 34 18 06 62 00 0C 22 42 08 3C 16 5E 4C 44 46 52 04 24 4E 1E 5C 40 2E 26 28 34 4A 06 30 00 3E 22 10 08 0A 16 2C 4C 12 46 20 04 56 4E 50 5C 0E 2E 58 28 02 4A 38 30 32 3E 54 10 3A 0A 48 2C 1A 12 14 20 36 56 1C 50 2A 0E 60 58 5A 02 18 38 62 32 0C 54 42 3A 3C 48 5E 1A 44 14 52 36 24 1C 1E 2A 40 60 26 5A 34 18 06 62 00 0C 22 42 08 3C 16 5E 4C 44 46 52 04 24 4E 1E 5C 40 2E 26 28 34 4A 06 30
+PUT:  03
+PUT:  00 07
+PUT:  69 6E 74 54 65 73 74
+PUT:  7F FF FF FF
+PUT:  09
+PUT:  00 0F
+PUT:  6C 69 73 74 54 65 73 74 20 28 6C 6F 6E 67 29
+PUT:  04
+PUT:  00 00 00 01
+PUT:  09
+PUT:  00 13
+PUT:  6C 69 73 74 54 65 73 74 20 28 63 6F 6D 70 6F 75 6E 64 29
+PUT:  0A
+PUT:  00 00 00 01
+PUT:  01
+PUT:  00 08
+PUT:  62 79 74 65 54 65 73 74
+PUT:  7F9FFC0B6C38
+PUT:  00

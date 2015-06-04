@@ -7,8 +7,7 @@ use lib "$FindBin::Bin/lib";
 use Minecraft;
 
 use Data::Dumper;
-my $parser = new Minecraft::NBT::Parser();
-my $data = $parser->parse_file( $ARGV[0] );
+my $data = Minecraft::NBT->from_file( $ARGV[0] );
 print Dumper( $data );
 exit;
 

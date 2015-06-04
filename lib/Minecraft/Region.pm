@@ -1,33 +1,172 @@
-package Minecraft::NBT::Parser;
+package Minecraft::Region;
 
-sub new
+use Compress::Zlib ;
+use strict; 
+use warnings;
+use Data::Dumper;
+
+#coordinates are relative to the region
+
+# need an 'ensure section' function later
+
+sub block_section
 {
-	my( $class ) = @_;
+	my($self, $x,$y,$z ) = @_;
 
-	return bless {}, $class;
+	# work out which chunk
+	my $chunk_x = $x >> 4;
+	my $chunk_z = $z >> 4;
+	my $section_y = $y >> 4;
+
+	my $chunk = $self->{$chunk_z}->{$chunk_x}->{chunk};
+	my $sections = $chunk->{children}->{Level}->{children}->{Sections};
+	my $section = $sections->{value}->[$section_y];
+	return $section;
+}
+sub add_section
+{
+	my($self, $x,$y,$z ) = @_;
+
+	# work out which chunk
+	my $chunk_x = $x >> 4;
+	my $chunk_z = $z >> 4;
+	my $section_y = $y >> 4;
+
+	my $chunk = $self->{$chunk_z}->{$chunk_x}->{chunk};
+	my $sections = $chunk->{children}->{Level}->{children}->{Sections};
+
+
+	my $section = bless( { children=>{} }, "Minecraft::NBT::Compound"  );
+	$section->{children}->{Y} = bless { name=>"Y", value=>$section_y }, "Minecraft::NBT::Byte";
+	$section->{children}->{Blocks} = bless { name=>"Blocks", value=>chr(0)x4096 }, "Minecraft::NBT::ByteArray";
+	$section->{children}->{BlockLight} = bless { name=>"BlockLight", value=>chr(0)x2048 }, "Minecraft::NBT::ByteArray";
+	$section->{children}->{SkyLight} = bless { name=>"SkyLight", value=>chr(0)x2048 }, "Minecraft::NBT::ByteArray";
+	$section->{children}->{Data} = bless { name=>"Data", value=>chr(0)x2048 }, "Minecraft::NBT::ByteArray";
+	
+	push @{$sections->{value}}, $section;
+
+   #'Blocks' => bless( { 'length' => 4096, 'value' => '?', 'name' => 'Blocks' }, 'Minecraft::NBT::ByteArray' ),
+   #'BlockLight' => bless( { 'length' => 2048, 'value' => '', 'name' => 'BlockLight' }, 'Minecraft::NBT::ByteArray' ),
+   #'SkyLight' => bless( { 'length' => 2048, 'value' => '?????????????????????', 'name' => 'SkyLight' }, 'Minecraft::NBT::ByteArray' ),
+   #'Y' => bless( { 'value' => 9, 'name' => 'Y' }, 'Minecraft::NBT::Byte' ),
+   #'Data' => bless( { 'length' => 2048, 'value' => '', 'name' => 'Data' }, 'Minecraft::NBT::ByteArray' )
+
+	return $section;
 }
 
-sub parse_file
+
+sub block_offset 
 {
-	my( $self,$filename ) = @_;
+	my( $self, $x,$y,$z) = @_;
+
+	my $local_x = $x&15;
+	my $local_y = $y&15;
+	my $local_z = $z&15;
+	my $offset = 16*16*$local_y + 16*$local_z + $local_x;
+	return $offset;
+}
+sub get_block
+{
+	my($self, $x,$y,$z ) = @_;
+
+	my $section = $self->block_section($x,$y,$z);
+	return 0 if( !$section );
+	my $offset = $self->block_offset($x,$y,$z);
+	return ord( substr( $section->{children}->{Blocks}->{value}, $offset, 1 ) );
+}
+sub set_block
+{
+	my( $self,   $x,$y,$z, $type ) = @_;
+
+	my $section = $self->block_section($x,$y,$z);
+	if( !$section ) 
+	{ 
+		$section = $self->add_section($x,$y,$z);
+	}
+	my $offset = $self->block_offset($x,$y,$z);
+
+	substr( $section->{children}->{Blocks}->{value}, $offset, 1 ) = chr($type);
+}
+
+
+
+
+################################################################################
+################################################################################
+################################################################################
+# IO Functions
+################################################################################
+################################################################################
+################################################################################
+
+
+
+
+
+
+sub from_file
+{
+	my( $class, $filename ) = @_;
 
 	local $/ = undef;
-	open( my $fh, "<", $filename ) || die "failed to open $filename: $!";
+	open( my $fh, "<:bytes", $filename ) || die "failed to open $filename: $!";
   	binmode $fh;
   	my $data = <$fh>;
   	close $fh;
 
-	return $self->parse_string( $data );
+	return $class->from_string( $data );
 }
 
-sub parse_string
+sub to_file
 {
-	my( $self, $data ) = @_;
+	my( $self, $filename ) = @_;
+
+	my $str = $self->to_string();
+	local $/ = undef;
+	open( my $fh, ">:bytes", $filename ) || die "failed to open $filename: $!";
+  	binmode $fh;
+  	syswrite( $fh, $str );
+  	close $fh;
+}
+
+sub from_string
+{
+	my( $class, $data ) = @_;
+
+	my $self = bless {}, $class;
 
 	$self->{data} = $data;
 	$self->{offset} = 0;
 	$self->{length} = length($data);
-	return $self->tag;
+
+	for( my $z=0; $z< 32; ++$z )
+	{
+		for( my $x=0; $x<32; ++$x )
+		{
+ 			$self->{offset} = 4 * ($x + $z * 32);
+			my $b1 = $self->byte;
+			my $b2 = $self->byte;
+			my $b3 = $self->byte;
+			my $b4 = $self->byte;
+			my $chunk_offset = ($b1<<16) + ($b2<<8) + ($b3);
+			my $chunk_bits = $b4;
+	
+ 			$self->{offset} = 4*32*32  + 4 * ($x + $z * 32);
+			my $chunk_time = $self->int32;
+	
+			# << 12 is multiply 4096
+			$self->{offset} = $chunk_offset<<12;
+			my $chunk_length = $self->int32;
+			my $compression_type = $self->byte;
+			if( $compression_type != 2 ) { die "Oh, no, it's not zlib"; }
+			my $zcomp = substr( $self->{data}, ($chunk_offset<<12)+5, $chunk_length-1 );
+			my $chunk = uncompress( $zcomp );
+			$self->{$z}->{$x}->{chunk} = Minecraft::NBT->from_string( $chunk );
+			$self->{$z}->{$x}->{timestamp} = $chunk_time;
+		}
+	}
+
+	return $self;
 }
 
 # get basic values from stream
@@ -52,158 +191,66 @@ sub gete
 	# assume little endian
 	return reverse $chars;
 }
-
-	
 sub byte
 {
 	my( $self ) = @_;
 	
 	return ord( $self->get(1) );
 }
-sub string
+sub int32
+{
+	my( $self ) = @_;
+	my $t1 = $self->byte;
+	my $t2 = $self->byte;
+	my $t3 = $self->byte;
+	my $t4 = $self->byte;
+	return ($t1<<24) + ($t2<<16) + ($t3<<8) + $t4;
+}
+
+######################################################################
+
+sub to_string
 {
 	my( $self ) = @_;
 
-	# unsigned int
-	my $length = unpack('n', $self->get(2) );
-	return $self->get($length);
-}
-sub tag	
-{
-	my( $self ) = @_;
+	my $chunk_offset=2;
+	my $offset = [];
+	my $time_data = [];
+	my $chunk_data = [];
 
-	my $type = $self->byte;
-	my $v = $self->typed_tag( $type,1 );
-	return $v;
-}
-sub typed_tag
-{
-	my( $self, $type, $needs_name ) = @_;
-
-	if( $type == 0 ) { return bless {}, "Minecraft::NBT::Tag::End"; }
-	if( $type == 1 ) { return $self->tag_byte( $needs_name ); }
-	if( $type == 2 ) { return $self->tag_short( $needs_name ); }
-	if( $type == 3 ) { return $self->tag_int( $needs_name ); }
-	if( $type == 4 ) { return $self->tag_long( $needs_name ); }
-	if( $type == 5 ) { return $self->tag_float( $needs_name ); }
-	if( $type == 6 ) { return $self->tag_double( $needs_name ); }
-	if( $type == 7 ) { return $self->tag_byte_array( $needs_name ); }
-	if( $type == 8 ) { return $self->tag_string( $needs_name ); }
-	if( $type == 9 ) { return $self->tag_list( $needs_name ); }
-	if( $type == 10 ) { return $self->tag_compound( $needs_name ); }
-	if( $type == 11 ) { return $self->tag_int_array( $needs_name ); }
-	die "Unknown tag type: $type\n";
-}
-#1
-sub tag_byte
-{
-	my( $self, $needs_name ) = @_;
-
-	my $v = bless {}, "Minecraft::NBT::Tag::Byte";
-	$v->{name} = $self->string if( $needs_name );
-	$v->{value} = ord( $self->get(1) );
-	return $v;
-}
-#2
-sub tag_short
-{
-	my( $self, $needs_name ) = @_;
-
-	my $v = bless {}, "Minecraft::NBT::Tag::Short";
-	$v->{name} = $self->string if( $needs_name );
-	$v->{value} = unpack('s', $self->gete(2) );
-	return $v;
-}
-#3
-sub tag_int
-{
-	my( $self, $needs_name ) = @_;
-
-	my $v = bless {}, "Minecraft::NBT::Tag::Int";
-	$v->{name} = $self->string if( $needs_name );
-	$v->{value} = unpack('l', $self->gete(4) );
-	return $v;
-}
-#4
-sub tag_long
-{
-	my( $self, $needs_name ) = @_;
-
-	my $v = bless {}, "Minecraft::NBT::Tag::Long";
-	$v->{name} = $self->string if( $needs_name );
-	$v->{value} = unpack('q', $self->gete(8) ); 
-	return $v;
-}
-#5
-sub tag_float
-{
-	my( $self, $needs_name ) = @_;
-
-	my $v = bless {}, "NBT::Tag::Float";
-	$v->{name} = $self->string if( $needs_name );
-	$v->{value} = unpack('f', $self->gete(4) );
-	return $v;
-}
-#6
-sub tag_double
-{
-	my( $self, $needs_name ) = @_;
-
-	my $v = bless {}, "NBT::Tag::Double";
-	$v->{name} = $self->string if( $needs_name );
-	$v->{value} = unpack('d', $self->gete(8) );
-	return $v;
-}
-#7
-sub tag_byte_array
-{
-	my( $self, $needs_name ) = @_;
-
-	my $v = bless {}, "NBT::Tag::ByteArray";
-	$v->{name} = $self->string if( $needs_name );
-	$v->{length} = unpack('l', $self->gete(4) );
-	$v->{value} = $self->get( $v->{length} );
-	return $v;
-}
-#8
-sub tag_string
-{
-	my( $self, $needs_name ) = @_;
-
-	my $v = bless {}, "NBT::Tag::String";
-	$v->{name} = $self->string if( $needs_name );
-	$v->{value} = $self->string;
-	return $v;
-}
-#9
-sub tag_list
-{
-	my( $self, $needs_name ) = @_;
-
-	my $v = bless {}, "NBT::Tag::TagList";
-	$v->{name} = $self->string if( $needs_name );
-	$v->{type} = $self->byte;
-	$v->{length} = unpack('l', $self->gete(4) );
-	$v->{value} = [];
-	for( my $i=0; $i<$v->{length}; ++$i )
+	# turn each chunk into data
+	for( my $z=0; $z<32; ++$z )
 	{
-		push @{$v->{value}}, $self->typed_tag( $v->{type},0 );
-	}
-	return $v;
-}
-#10
-sub tag_compound
-{
-	my( $self, $needs_name ) = @_;
+		for( my $x=0; $x<32; ++$x )
+		{
+			my $chunk_time = $self->{$z}->{$x}->{timestamp};
+			my $chunk_nbt = $self->{$z}->{$x}->{chunk}->to_string();
+			my $zcomp = compress( $chunk_nbt );
+			my $length = length( $zcomp )+1;
+		
+			my $chunk = chr(($length>>24)&255).chr(($length>>16)&255).chr(($length>>8)&255).chr(($length)&255);
+			$chunk .= chr(2);
+			$chunk .= $zcomp;			
 
-	my $v = bless {children=>{}}, "NBT::Tag::Compound";
-	$v->{name} = $self->string if( $needs_name );
-	while(1)
-	{
-		my $child = $self->tag;
-		return $v if( $child->isa( "Minecraft::NBT::Tag::End" ) );
-		$v->{children}->{ $child->{name} } = $child;
+			if( length( $chunk ) % 4096 != 0 )
+			{
+				$chunk .= chr(0)x(4096-(length( $chunk ) % 4096));
+			}
+			if( length( $chunk ) % 4096 != 0 )
+			{
+				die "math fail";
+			}
+			my $sectors = length( $chunk )/4096;
+
+			push @$chunk_data, $chunk;
+			push @$offset, chr(($chunk_offset>>16)&255).chr(($chunk_offset>>8)&255).chr(($chunk_offset)&255).chr($sectors);
+			push @$time_data, chr(($chunk_time>>24)&255).chr(($chunk_time>>16)&255).chr(($chunk_time>>8)&255).chr(($chunk_time)&255);
+			$chunk_offset += $sectors;
+		}
 	}
+
+	my $str = join( "", @$offset, @$time_data, @$chunk_data );
+	return $str;
 }
 
 1;

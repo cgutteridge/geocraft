@@ -1,4 +1,5 @@
 
-use Minecraft::NBT::Parser;
+use Minecraft::NBT;
+use Minecraft::Region;
 
 1;
