@@ -109,8 +109,8 @@ sub tag_byte
 	my( $self, $needs_name ) = @_;
 
 	my $v = bless {}, "Minecraft::NBT::Byte";
-	$v->{name} = $self->string if( $needs_name );
-	$v->{value} = ord( $self->get(1) );
+	$v->{_name} = $self->string if( $needs_name );
+	$v->{_value} = ord( $self->get(1) );
 	return $v;
 }
 #2
@@ -119,8 +119,8 @@ sub tag_short
 	my( $self, $needs_name ) = @_;
 
 	my $v = bless {}, "Minecraft::NBT::Short";
-	$v->{name} = $self->string if( $needs_name );
-	$v->{value} = unpack('s', $self->gete(2) );
+	$v->{_name} = $self->string if( $needs_name );
+	$v->{_value} = unpack('s', $self->gete(2) );
 	return $v;
 }
 #3
@@ -129,8 +129,8 @@ sub tag_int
 	my( $self, $needs_name ) = @_;
 
 	my $v = bless {}, "Minecraft::NBT::Int";
-	$v->{name} = $self->string if( $needs_name );
-	$v->{value} = unpack('l', $self->gete(4) );
+	$v->{_name} = $self->string if( $needs_name );
+	$v->{_value} = unpack('l', $self->gete(4) );
 	return $v;
 }
 #4
@@ -139,8 +139,8 @@ sub tag_long
 	my( $self, $needs_name ) = @_;
 
 	my $v = bless {}, "Minecraft::NBT::Long";
-	$v->{name} = $self->string if( $needs_name );
-	$v->{value} = unpack('q', $self->gete(8) ); 
+	$v->{_name} = $self->string if( $needs_name );
+	$v->{_value} = unpack('q', $self->gete(8) ); 
 	return $v;
 }
 #5
@@ -149,8 +149,8 @@ sub tag_float
 	my( $self, $needs_name ) = @_;
 
 	my $v = bless {}, "Minecraft::NBT::Float";
-	$v->{name} = $self->string if( $needs_name );
-	$v->{value} = unpack('f', $self->gete(4) );
+	$v->{_name} = $self->string if( $needs_name );
+	$v->{_value} = unpack('f', $self->gete(4) );
 	return $v;
 }
 #6
@@ -159,8 +159,8 @@ sub tag_double
 	my( $self, $needs_name ) = @_;
 
 	my $v = bless {}, "Minecraft::NBT::Double";
-	$v->{name} = $self->string if( $needs_name );
-	$v->{value} = unpack('d', $self->gete(8) );
+	$v->{_name} = $self->string if( $needs_name );
+	$v->{_value} = unpack('d', $self->gete(8) );
 	return $v;
 }
 #7
@@ -169,9 +169,9 @@ sub tag_byte_array
 	my( $self, $needs_name ) = @_;
 
 	my $v = bless {}, "Minecraft::NBT::ByteArray";
-	$v->{name} = $self->string if( $needs_name );
-	$v->{length} = unpack('l', $self->gete(4) );
-	$v->{value} = $self->get( $v->{length} );
+	$v->{_name} = $self->string if( $needs_name );
+	my $length = unpack('l', $self->gete(4) );
+	$v->{_value} = $self->get( $length );
 	return $v;
 }
 #8
@@ -180,8 +180,8 @@ sub tag_string
 	my( $self, $needs_name ) = @_;
 
 	my $v = bless {}, "Minecraft::NBT::String";
-	$v->{name} = $self->string if( $needs_name );
-	$v->{value} = $self->string;
+	$v->{_name} = $self->string if( $needs_name );
+	$v->{_value} = $self->string;
 	return $v;
 }
 #9
@@ -190,13 +190,13 @@ sub tag_list
 	my( $self, $needs_name ) = @_;
 
 	my $v = bless {}, "Minecraft::NBT::TagList";
-	$v->{name} = $self->string if( $needs_name );
-	$v->{type} = $self->byte;
-	$v->{length} = unpack('l', $self->gete(4) );
-	$v->{value} = [];
-	for( my $i=0; $i<$v->{length}; ++$i )
+	$v->{_name} = $self->string if( $needs_name );
+	$v->{_type} = $self->byte;
+	my $length = unpack('l', $self->gete(4) );
+	$v->{_value} = [];
+	for( my $i=0; $i<$length; ++$i )
 	{
-		push @{$v->{value}}, $self->typed_tag( $v->{type},0 );
+		push @{$v->{_value}}, $self->typed_tag( $v->{_type},0 );
 	}
 	return $v;
 }
@@ -205,18 +205,18 @@ sub tag_compound
 {
 	my( $self, $needs_name ) = @_;
 
-	my $v = bless {children=>{}}, "Minecraft::NBT::Compound";
-	$v->{name} = $self->string if( $needs_name );
-	# print "COMPOUND TAG: ".$v->{name}."\n";
+	my $v = bless {}, "Minecraft::NBT::Compound";
+	$v->{_name} = $self->string if( $needs_name );
+	# print "COMPOUND TAG: ".$v->{_name}."\n";
 	while(1)
 	{
 		my $child = $self->tag;
 		if( $child->isa( "Minecraft::NBT::End" ) )
 		{
-			# print "END COMPOUND TAG: ".$v->{name}."\n";
+			# print "END COMPOUND TAG: ".$v->{_name}."\n";
 			return $v;
 		}
-		$v->{children}->{ $child->{name} } = $child;
+		$v->{ $child->{_name} } = $child;
 	}
 }
 #11
@@ -225,12 +225,12 @@ sub tag_int_array
 	my( $self, $needs_name ) = @_;
 
 	my $v = bless {}, "Minecraft::NBT::IntArray";
-	$v->{name} = $self->string if( $needs_name );
-	$v->{length} = unpack('l', $self->gete(4) );
-	$v->{value} = [];
-	for( my $i=0; $i<$v->{length}; ++$i )
+	$v->{_name} = $self->string if( $needs_name );
+	my $length = unpack('l', $self->gete(4) );
+	$v->{_value} = [];
+	for( my $i=0; $i<$length; ++$i )
 	{
-		push @{$v->{value}}, unpack('l', $self->gete(4) );
+		push @{$v->{_value}}, unpack('l', $self->gete(4) );
 	}
 	return $v;
 }
@@ -261,10 +261,10 @@ sub to_string
 {
 	my( $self ) = @_;
 
-	$self->{output} = [];
+	$self->{_output} = [];
 	$self->put_tag( $self, 1 );
 	
-	return join( "", @{$self->{output}} );
+	return join( "", @{$self->{_output}} );
 
 }
 
@@ -292,7 +292,7 @@ sub put
 	{
 		Carp::confess;
 	}
-	push @{$self->{output}}, $chars;
+	push @{$self->{_output}}, $chars;
 
 	#print "PUT: "; foreach my $char ( split //, $chars ) { print sprintf( " %02X", ord($char) ); } print "\n";
 
@@ -338,16 +338,16 @@ sub put_tag
 	elsif( ref($tag) eq "Minecraft::NBT::TagList" ) { $self->put_tag_list( $tag, $needs_name ); }
 	elsif( ref($tag) eq "Minecraft::NBT::Compound" ) { $self->put_tag_compound( $tag, $needs_name ); }
 	elsif( ref($tag) eq "Minecraft::NBT::IntArray" ) { $self->put_tag_int_array( $tag, $needs_name ); }
-	else { die "Unknown tag type: ".ref($tag); }
+	else { Carp::confess "Unknown tag type: ".ref($tag); }
 }
 #1
 sub put_tag_byte
 {
 	my( $self, $tag, $needs_name ) = @_;
-#print "PUTTING TAG BYTE: ".$tag->{name}." -- ".$tag->{value}."\n";
+#print "PUTTING TAG BYTE: ".$tag->{_name}." -- ".$tag->{_value}."\n";
 	$self->put_byte(1) if( $needs_name );
-	$self->put_string( $tag->{name} ) if( $needs_name );
-	$self->put_byte($tag->{value});
+	$self->put_string( $tag->{_name} ) if( $needs_name );
+	$self->put_byte($tag->{_value});
 }
 #2
 sub put_tag_short
@@ -355,9 +355,9 @@ sub put_tag_short
 	my( $self, $tag, $needs_name ) = @_;
 
 	$self->put_byte(2) if( $needs_name );
-	$self->put_string( $tag->{name} ) if( $needs_name );
+	$self->put_string( $tag->{_name} ) if( $needs_name );
 
-	$self->pute( pack( 's', $tag->{value} ) );
+	$self->pute( pack( 's', $tag->{_value} ) );
 }
 #3
 sub put_tag_int
@@ -365,9 +365,9 @@ sub put_tag_int
 	my( $self, $tag, $needs_name ) = @_;
 
 	$self->put_byte(3) if( $needs_name );
-	$self->put_string( $tag->{name} ) if( $needs_name );
+	$self->put_string( $tag->{_name} ) if( $needs_name );
 
-	$self->pute( pack( 'l', $tag->{value} ) );
+	$self->pute( pack( 'l', $tag->{_value} ) );
 }
 #4
 sub put_tag_long
@@ -375,9 +375,9 @@ sub put_tag_long
 	my( $self, $tag, $needs_name ) = @_;
 
 	$self->put_byte(4) if( $needs_name );
-	$self->put_string( $tag->{name} ) if( $needs_name );
+	$self->put_string( $tag->{_name} ) if( $needs_name );
 
-	$self->pute( pack( 'j', $tag->{value} ) );
+	$self->pute( pack( 'j', $tag->{_value} ) );
 }
 #5
 sub put_tag_float
@@ -385,9 +385,9 @@ sub put_tag_float
 	my( $self, $tag, $needs_name ) = @_;
 
 	$self->put_byte(5) if( $needs_name );
-	$self->put_string( $tag->{name} ) if( $needs_name );
+	$self->put_string( $tag->{_name} ) if( $needs_name );
 
-	$self->pute( pack( 'f', $tag->{value} ) );
+	$self->pute( pack( 'f', $tag->{_value} ) );
 }
 #6
 sub put_tag_double
@@ -395,9 +395,9 @@ sub put_tag_double
 	my( $self, $tag, $needs_name ) = @_;
 
 	$self->put_byte(6) if( $needs_name );
-	$self->put_string( $tag->{name} ) if( $needs_name );
+	$self->put_string( $tag->{_name} ) if( $needs_name );
 
-	$self->pute( pack( 'd', $tag->{value} ) );
+	$self->pute( pack( 'd', $tag->{_value} ) );
 }
 #7
 sub put_tag_byte_array
@@ -405,10 +405,10 @@ sub put_tag_byte_array
 	my( $self, $tag, $needs_name ) = @_;
 
 	$self->put_byte(7) if( $needs_name );
-	$self->put_string( $tag->{name} ) if( $needs_name );
+	$self->put_string( $tag->{_name} ) if( $needs_name );
 
-	$self->pute( pack( 'l', length($tag->{value}) ) );
-	$self->put( $tag->{value} );
+	$self->pute( pack( 'l', length($tag->{_value}) ) );
+	$self->put( $tag->{_value} );
 }
 #8
 sub put_tag_string
@@ -416,9 +416,9 @@ sub put_tag_string
 	my( $self, $tag, $needs_name ) = @_;
 
 	$self->put_byte(8) if( $needs_name );
-	$self->put_string( $tag->{name} ) if( $needs_name );
+	$self->put_string( $tag->{_name} ) if( $needs_name );
 
-	$self->put_string( $tag->{value} );
+	$self->put_string( $tag->{_value} );
 }
 #9
 sub put_tag_list
@@ -426,11 +426,11 @@ sub put_tag_list
 	my( $self, $tag, $needs_name ) = @_;
 
 	$self->put_byte(9) if( $needs_name );
-	$self->put_string( $tag->{name} ) if( $needs_name );
+	$self->put_string( $tag->{_name} ) if( $needs_name );
 
-	$self->put_byte( $tag->{type} );
-	$self->pute( pack( 'l', scalar(@{$tag->{value}}) ) );
-	foreach my $tag_i ( @{$tag->{value}} )
+	$self->put_byte( $tag->{_type} );
+	$self->pute( pack( 'l', scalar(@{$tag->{_value}}) ) );
+	foreach my $tag_i ( @{$tag->{_value}} )
 	{
 		$self->put_tag( $tag_i, 0 );
 	}
@@ -440,16 +440,17 @@ sub put_tag_compound
 {
 	my( $self, $tag, $needs_name ) = @_;
 
-#print "TAG COMPOUND: ".$tag->{name}."\n";
+#print "TAG COMPOUND: ".$tag->{_name}."\n";
 	$self->put_byte(10) if( $needs_name );
-	$self->put_string( $tag->{name} ) if( $needs_name );
+	$self->put_string( $tag->{_name} ) if( $needs_name );
 
-	foreach my $child ( values %{$tag->{children}} )
+	foreach my $key ( keys %{$tag} )
 	{
-		$self->put_tag( $child, 1 );
+		next if $key =~ m/^_/;
+		$self->put_tag( $tag->{$key}, 1 );
 	}
 	$self->put_byte(0); # End tag.
-#print "ENDTAG COMPOUND: ".$tag->{name}."\n";
+#print "ENDTAG COMPOUND: ".$tag->{_name}."\n";
 }
 #11
 sub put_tag_int_array
@@ -457,21 +458,14 @@ sub put_tag_int_array
 	my( $self, $tag, $needs_name ) = @_;
 
 	$self->put_byte(11) if( $needs_name );
-	$self->put_string( $tag->{name} ) if( $needs_name );
+	$self->put_string( $tag->{_name} ) if( $needs_name );
 
-	$self->pute( pack( 'l', scalar(@{$tag->{value}}) ) );
-	foreach my $value ( @{$tag->{value}} )
+	$self->pute( pack( 'l', scalar(@{$tag->{_value}}) ) );
+	foreach my $value ( @{$tag->{_value}} )
 	{
 		$self->pute( pack( 'l', $value ));
 	}
 }
-
-
-#######################################################################
-#######################################################################
-#######################################################################
-
-
 
 1;
 
