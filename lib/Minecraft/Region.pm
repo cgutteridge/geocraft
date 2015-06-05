@@ -1,91 +1,173 @@
 package Minecraft::Region;
 
+use IO::Uncompress::Gunzip qw(gunzip $GunzipError) ;
 use Compress::Zlib ;
 use strict; 
 use warnings;
 use Data::Dumper;
+use POSIX;
 
 #coordinates are relative to the region
 
-# need an 'ensure section' function later
+
+sub new
+{
+	my($class) = @_;
+
+	my $self = bless {}, $class;
+
+	return $self;
+}
+
+sub chunk_xz
+{
+	my( $self, $rel_x, $rel_z ) = @_;
+
+	my $cx = POSIX::floor($rel_x/16);
+	my $cz = POSIX::floor($rel_z/16);
+
+	if( $self->{invert_x} + $self->{invert_z} == 1 ) { 
+#		$cx = 31-$cx;
+#		$cz = 31-$cz;
+	}
+
+	return( $cx, $cz );
+}
+
 
 sub block_section
 {
-	my($self, $x,$y,$z ) = @_;
+	my($self, $rel_x,$y,$rel_z ) = @_;
 
 	# work out which chunk
-	my $chunk_x = $x >> 4;
-	my $chunk_z = $z >> 4;
-	my $section_y = $y >> 4;
+	my( $chunk_x, $chunk_z ) = $self->chunk_xz($rel_x,$rel_z);
+	my $section_y = POSIX::floor($y/16);
 
 	my $chunk = $self->{$chunk_z}->{$chunk_x}->{chunk};
-	my $sections = $chunk->{children}->{Level}->{children}->{Sections};
-	my $section = $sections->{value}->[$section_y];
+	return undef if( !defined $chunk );
+
+	my $sections = $chunk->{Level}->{Sections};
+	my $section = $sections->{_value}->[$section_y];
 	return $section;
 }
+
 sub add_section
 {
-	my($self, $x,$y,$z ) = @_;
+	my($self, $rel_x,$y,$rel_z ) = @_;
 
 	# work out which chunk
-	my $chunk_x = $x >> 4;
-	my $chunk_z = $z >> 4;
-	my $section_y = $y >> 4;
+	my( $chunk_x, $chunk_z ) = $self->chunk_xz($rel_x,$rel_z);
 
+	if( !defined $self->{$chunk_z}->{$chunk_x}->{chunk} )
+	{
+		$self->add_chunk( $chunk_x, $chunk_z );
+	}
 	my $chunk = $self->{$chunk_z}->{$chunk_x}->{chunk};
-	my $sections = $chunk->{children}->{Level}->{children}->{Sections};
-
-
-	my $section = bless( { children=>{} }, "Minecraft::NBT::Compound"  );
-	$section->{children}->{Y} = bless { name=>"Y", value=>$section_y }, "Minecraft::NBT::Byte";
-	$section->{children}->{Blocks} = bless { name=>"Blocks", value=>chr(0)x4096 }, "Minecraft::NBT::ByteArray";
-	$section->{children}->{BlockLight} = bless { name=>"BlockLight", value=>chr(0)x2048 }, "Minecraft::NBT::ByteArray";
-	$section->{children}->{SkyLight} = bless { name=>"SkyLight", value=>chr(0)x2048 }, "Minecraft::NBT::ByteArray";
-	$section->{children}->{Data} = bless { name=>"Data", value=>chr(0)x2048 }, "Minecraft::NBT::ByteArray";
 	
-	push @{$sections->{value}}, $section;
+	my $sections = $chunk->{Level}->{Sections};
 
-   #'Blocks' => bless( { 'length' => 4096, 'value' => '?', 'name' => 'Blocks' }, 'Minecraft::NBT::ByteArray' ),
-   #'BlockLight' => bless( { 'length' => 2048, 'value' => '', 'name' => 'BlockLight' }, 'Minecraft::NBT::ByteArray' ),
-   #'SkyLight' => bless( { 'length' => 2048, 'value' => '?????????????????????', 'name' => 'SkyLight' }, 'Minecraft::NBT::ByteArray' ),
-   #'Y' => bless( { 'value' => 9, 'name' => 'Y' }, 'Minecraft::NBT::Byte' ),
-   #'Data' => bless( { 'length' => 2048, 'value' => '', 'name' => 'Data' }, 'Minecraft::NBT::ByteArray' )
+	my $section_y = POSIX::floor($y/16);
 
-	return $section;
+	for( my $section_y_i=0; $section_y_i<=$section_y; ++$section_y_i )
+	{
+		next if( defined $sections->{_value}->[$section_y_i] );
+
+		my $section = bless( {}, "Minecraft::NBT::Compound"  );
+		$section->{Y} = bless { _name=>"Y", _value=>$section_y_i }, "Minecraft::NBT::Byte";
+		$section->{Blocks} = bless { _name=>"Blocks", _value=>chr(0)x4096 }, "Minecraft::NBT::ByteArray";
+		$section->{BlockLight} = bless { _name=>"BlockLight", _value=>chr(255)x2048 }, "Minecraft::NBT::ByteArray";
+		$section->{SkyLight} = bless { _name=>"SkyLight", _value=>chr(0)x2048 }, "Minecraft::NBT::ByteArray";
+		$section->{Data} = bless { _name=>"Data", _value=>chr(0)x2048 }, "Minecraft::NBT::ByteArray";
+		$sections->{_value}->[$section_y_i]= $section;
+	}
+
+	$self->{_changed} = 1;
+
+	return $sections->{_value}->[$section_y];
 }
 
+sub add_chunk
+{
+	my($self,   $c_x, $c_z ) = @_;
+
+
+	my $level = bless { _name=>"Level" }, "Minecraft::NBT::Compound";	
+	$self->{$c_z}->{$c_x} = {
+		timestamp => time(),
+		chunk => bless  { _name=>"", Level=>$level }, "Minecraft::NBT::Compound"
+	};
+
+	$level->{TerrainPopulated} = bless { _name=>"TerrainPopulated", _value=>1 }, 'Minecraft::NBT::Byte';
+	$level->{Biomes} = bless { _name=>"Biomes", _value=>chr(0)x2048 }, 'Minecraft::NBT::ByteArray';
+	$level->{xPos} = bless { _name=>"xPos", _value=>$c_x }, 'Minecraft::NBT::Int';
+	$level->{zPos} = bless { _name=>"zPos", _value=>$c_z }, 'Minecraft::NBT::Int';
+	$level->{LightPopulated} = bless { _name=>"LightPopulated", _value=>1 }, 'Minecraft::NBT::Byte';
+	$level->{Entities} = bless { _name=>"Entities", _value=>[], _type=>10 }, 'Minecraft::NBT::TagList';
+	$level->{TileEntities} = bless { _name=>"TileEntities", _value=>[], _type=>10 }, 'Minecraft::NBT::TagList';
+	$level->{LastUpdate} = bless { _name=>"LastUpdate", _value=>0 }, 'Minecraft::NBT::Long';
+	$level->{HeightMap} = bless { _name=>"HeightMap", _value=>[] }, 'Minecraft::NBT::IntArray';
+	$level->{Sections} = bless { _name=>"Sections", _value=>[], _type=>10 }, 'Minecraft::NBT::TagList';
+
+	$self->{_changed} = 1;
+}
+
+sub add_layer
+{
+	my( $self, $y, $type ) = @_;
+
+	for( my $rel_z=0;$rel_z<512;++$rel_z) {
+		for( my $rel_x=0;$rel_x<512;++$rel_x) {
+			$self->set_block( $rel_x,$y,$rel_z, $type );
+		}
+	}
+}
+
+# Getters & Setters
+# Coordinates relative to *Region*
 
 sub block_offset 
 {
-	my( $self, $x,$y,$z) = @_;
+	my( $self, $rel_x,$y,$rel_z) = @_;
 
-	my $local_x = $x&15;
+	my $local_x = $rel_x&15;
 	my $local_y = $y&15;
-	my $local_z = $z&15;
+	my $local_z = $rel_z&15;
+
+	if( $self->{invert_x} + $self->{invert_z} == 1 ) { 
+#		$local_x = 15-$local_x;
+#		$local_z = 15-$local_z;
+	}
+
 	my $offset = 16*16*$local_y + 16*$local_z + $local_x;
 	return $offset;
 }
 sub get_block
 {
-	my($self, $x,$y,$z ) = @_;
+	my($self, $rel_x,$y,$rel_z ) = @_;
 
-	my $section = $self->block_section($x,$y,$z);
+	my $section = $self->block_section($rel_x,$y,$rel_z);
 	return 0 if( !$section );
-	my $offset = $self->block_offset($x,$y,$z);
-	return ord( substr( $section->{children}->{Blocks}->{value}, $offset, 1 ) );
+	my $offset = $self->block_offset($rel_x,$y,$rel_z);
+	return ord( substr( $section->{Blocks}->{_value}, $offset, 1 ) );
 }
 sub set_block
 {
-	my( $self,   $x,$y,$z, $type ) = @_;
+	my( $self,   $rel_x,$y,$rel_z, $type ) = @_;
 
-	my $section = $self->block_section($x,$y,$z);
+	if( $type != ($type&255) ) { die "bad type passed to set_block: $type"; }
+
+#print "ADD BLOCK: $rel_x,$y,$rel_z {$type}\n";
+	my $section = $self->block_section($rel_x,$y,$rel_z);
 	if( !$section ) 
 	{ 
-		$section = $self->add_section($x,$y,$z);
+print "MAKE SECTION!\n";
+		$section = $self->add_section($rel_x,$y,$rel_z);
 	}
-	my $offset = $self->block_offset($x,$y,$z);
+	my $offset = $self->block_offset($rel_x,$y,$rel_z);
+#print "OFFSET: $offset\n\n";
 
-	substr( $section->{children}->{Blocks}->{value}, $offset, 1 ) = chr($type);
+	substr( $section->{Blocks}->{_value}, $offset, 1 ) = chr($type);
+	$self->{_changed} = 1;
 }
 
 
@@ -139,30 +221,49 @@ sub from_string
 	$self->{offset} = 0;
 	$self->{length} = length($data);
 
-	for( my $z=0; $z< 32; ++$z )
+	for( my $c_z=0; $c_z< 32; ++$c_z )
 	{
-		for( my $x=0; $x<32; ++$x )
+		for( my $c_x=0; $c_x<32; ++$c_x )
 		{
- 			$self->{offset} = 4 * ($x + $z * 32);
+ 			$self->{offset} = 4 * ($c_x + $c_z * 32);
 			my $b1 = $self->byte;
 			my $b2 = $self->byte;
 			my $b3 = $self->byte;
 			my $b4 = $self->byte;
 			my $chunk_offset = ($b1<<16) + ($b2<<8) + ($b3);
 			my $chunk_bits = $b4;
-	
- 			$self->{offset} = 4*32*32  + 4 * ($x + $z * 32);
+
+			next if( $chunk_offset == 0 );
+
+			#print "$c_x, $c_z :: offset=$chunk_offset, bits=$chunk_bits\n";	
+ 			$self->{offset} = 4*32*32  + 4 * ($c_x + $c_z * 32);
 			my $chunk_time = $self->int32;
 	
 			# << 12 is multiply 4096
 			$self->{offset} = $chunk_offset<<12;
 			my $chunk_length = $self->int32;
 			my $compression_type = $self->byte;
-			if( $compression_type != 2 ) { die "Oh, no, it's not zlib"; }
-			my $zcomp = substr( $self->{data}, ($chunk_offset<<12)+5, $chunk_length-1 );
-			my $chunk = uncompress( $zcomp );
-			$self->{$z}->{$x}->{chunk} = Minecraft::NBT->from_string( $chunk );
-			$self->{$z}->{$x}->{timestamp} = $chunk_time;
+			my $c_zcomp = substr( $self->{data}, ($chunk_offset<<12)+5, $chunk_length-1 );
+
+			my $chunk;
+			if( $compression_type == 1 )
+			{
+				gunzip \$c_zcomp => \$chunk;
+			}
+			elsif( $compression_type == 2 )
+			{
+				$chunk = uncompress( $c_zcomp );
+			}
+			else
+			{
+				open( my $tmp, ">:bytes", "/tmp/comp.example" );
+				print {$tmp} $c_zcomp;
+				close $tmp;
+				die "Unknown compression type [$compression_type]"; 
+			}
+
+			$self->{$c_z}->{$c_x}->{chunk} = Minecraft::NBT->from_string( $chunk );
+			$self->{$c_z}->{$c_x}->{timestamp} = $chunk_time;
 		}
 	}
 
@@ -219,18 +320,24 @@ sub to_string
 	my $chunk_data = [];
 
 	# turn each chunk into data
-	for( my $z=0; $z<32; ++$z )
+	for( my $c_z=0; $c_z<32; ++$c_z )
 	{
-		for( my $x=0; $x<32; ++$x )
+		X: for( my $c_x=0; $c_x<32; ++$c_x )
 		{
-			my $chunk_time = $self->{$z}->{$x}->{timestamp};
-			my $chunk_nbt = $self->{$z}->{$x}->{chunk}->to_string();
-			my $zcomp = compress( $chunk_nbt );
-			my $length = length( $zcomp )+1;
+			if( !defined $self->{$c_z}->{$c_x} )
+			{
+				push @$offset, chr(0).chr(0).chr(0).chr(0);
+				push @$time_data, chr(0).chr(0).chr(0).chr(0);
+				next X;
+			}
+			my $chunk_time = $self->{$c_z}->{$c_x}->{timestamp};
+			my $chunk_nbt = $self->{$c_z}->{$c_x}->{chunk}->to_string();
+			my $c_zcomp = compress( $chunk_nbt );
+			my $length = length( $c_zcomp )+1;
 		
 			my $chunk = chr(($length>>24)&255).chr(($length>>16)&255).chr(($length>>8)&255).chr(($length)&255);
 			$chunk .= chr(2);
-			$chunk .= $zcomp;			
+			$chunk .= $c_zcomp;			
 
 			if( length( $chunk ) % 4096 != 0 )
 			{

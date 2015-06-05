@@ -288,10 +288,8 @@ sub put
 {
 	my( $self, $chars ) = @_;
 
-        if(  utf8::is_utf8($chars) )
-	{
-		Carp::confess;
-	}
+        if( utf8::is_utf8($chars) ) { utf8::encode($chars); }
+
 	push @{$self->{_output}}, $chars;
 
 	#print "PUT: "; foreach my $char ( split //, $chars ) { print sprintf( " %02X", ord($char) ); } print "\n";
