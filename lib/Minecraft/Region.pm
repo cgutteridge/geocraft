@@ -26,11 +26,6 @@ sub chunk_xz
 	my $cx = POSIX::floor($rel_x/16);
 	my $cz = POSIX::floor($rel_z/16);
 
-	if( $self->{invert_x} + $self->{invert_z} == 1 ) { 
-#		$cx = 31-$cx;
-#		$cz = 31-$cz;
-	}
-
 	return( $cx, $cz );
 }
 
@@ -133,10 +128,6 @@ sub block_offset
 	my $local_y = $y&15;
 	my $local_z = $rel_z&15;
 
-	if( $self->{invert_x} + $self->{invert_z} == 1 ) { 
-#		$local_x = 15-$local_x;
-#		$local_z = 15-$local_z;
-	}
 
 	my $offset = 16*16*$local_y + 16*$local_z + $local_x;
 	return $offset;
@@ -154,19 +145,37 @@ sub set_block
 {
 	my( $self,   $rel_x,$y,$rel_z, $type ) = @_;
 
+	my $subtype = 0;
+	if( int($type) != $type )
+	{
+		( $type, $subtype ) = split( /\./, $type );
+	}
 	if( $type != ($type&255) ) { die "bad type passed to set_block: $type"; }
+	if( $subtype != ($subtype&15) ) { die "bad subtype passed to set_block: $subtype"; }
 
 #print "ADD BLOCK: $rel_x,$y,$rel_z {$type}\n";
 	my $section = $self->block_section($rel_x,$y,$rel_z);
 	if( !$section ) 
 	{ 
-print "MAKE SECTION!\n";
 		$section = $self->add_section($rel_x,$y,$rel_z);
 	}
 	my $offset = $self->block_offset($rel_x,$y,$rel_z);
 #print "OFFSET: $offset\n\n";
 
 	substr( $section->{Blocks}->{_value}, $offset, 1 ) = chr($type);
+
+	# set subtype	
+	my $byte = ord substr( $section->{Data}->{_value}, ($offset/2), 1 );
+	if( $offset % 2 == 0 )
+	{
+		$byte = ($byte&240) + $subtype;
+	}
+	else
+	{
+		$byte = $subtype*16 + ($byte&15);
+	}
+	substr( $section->{Data}->{_value}, ($offset/2), 1 ) = chr($byte);
+
 	$self->{_changed} = 1;
 }
 
