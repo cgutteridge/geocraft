@@ -149,6 +149,7 @@ sub set_block
 	if( int($type) != $type )
 	{
 		( $type, $subtype ) = split( /\./, $type );
+		if( $subtype eq "1" ){$subtype="10";}
 	}
 	if( $type != ($type&255) ) { die "bad type passed to set_block: $type"; }
 	if( $subtype != ($subtype&15) ) { die "bad subtype passed to set_block: $subtype"; }
