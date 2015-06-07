@@ -7,23 +7,24 @@ use FindBin;
 use lib "$FindBin::Bin/lib";
 use Geo::Coordinates::OSGB qw(ll_to_grid grid_to_ll);
 use Minecraft;
+
+$X::skip={};
+$X::map={};
+require "map.pl";
 use strict;
 use warnings;
-
-my $map;
-my $skip;
-require "map.pl";
 
 my $tiles_dir= "$FindBin::Bin/tiles";
 
 my $mc = new Minecraft( "$FindBin::Bin/saves" );
-my $world = $mc->world( "Test24" );
+my $world = $mc->world( "Test23" );
 $world->init_region(0,0);
 
 my( $lat,$long)=  ( 50.933, -1.38928 );
 
 my( $width, $height ) = (256,256);
-#( $width, $height ) = (32,32);
+( $width, $height ) = (32,32);
+( $width, $height ) = (512,512);
 
 my( $easting_offset, $northing_offset ) = ll_to_grid( $lat,$long);
 $easting_offset -= $width/2;
@@ -74,7 +75,7 @@ for( my $y=0; $y<$height; ++$y ) {
 				next if( $p_y<0 || $p_y>=$tile_height );
 				my @pixel = $tiles->{$tile}->GetPixel(x=>$pixel_x,y=>$pixel_y);
 				my $col = int( $pixel[0]*100 ).":".int( $pixel[1]*100 ).":".int($pixel[2]*100);
-				next X if( $skip->{$col} );
+				next X if( $X::skip->{$col} );
 				$scores->{$col}++;
 				if( $scores->{$col} > $max )
 				{
@@ -85,7 +86,7 @@ for( my $y=0; $y<$height; ++$y ) {
 		}
 		my $underblock = 3;
 		my $block = 57;
-		if( $map->{$best} ) { $block = $map->{$best}; }
+		if( $X::map->{$best} ) { $block = $X::map->{$best}; }
 
 		print "$best\n" if( $block == 57 );
 		$underblock = 3 if $block==9;
@@ -111,4 +112,3 @@ sub getTileNumber {
   my $ytile = (1 - log(tan(deg2rad($lat)) + sec(deg2rad($lat)))/pi)/2 * 2**$zoom ;
   return (int($xtile), int($ytile), $xtile-int($xtile), $ytile-int($ytile));
 }
-
