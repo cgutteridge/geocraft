@@ -22,6 +22,7 @@ my( $width, $height ) = (256,256);
 my( $easting_offset, $northing_offset ) = ll_to_grid( $lat,$long);
 $easting_offset = int($easting_offset-$width/2);
 $northing_offset = int($northing_offset-$height/2);
+my $points = elevation();
 
 my $mc_x_offset = 0;
 my $mc_y = 2;

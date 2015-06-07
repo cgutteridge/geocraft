@@ -12,6 +12,8 @@ $X::map ={
 "81:92:65"=> 2, #grass
 "80:96:78"=> 2, # grass (park?)
 "80:100:94"=> 2, #grass (playground)
+"56:79:46"=> 2, #grass (tree?)
+"67:81:62"=> 2, #grass (garden);
 "68:81:62"=> 2, #woods?
 "80:92:65"=> 2, # grass?
 "96:93:71"=> 13, # carpark?
@@ -25,14 +27,21 @@ $X::map ={
 "88:88:88"=> 159.09, # private -cyan clay
 "87:87:87"=> 159.09, # private -cyan clay
 "88:87:87"=> 159.09, # private -cyan clay
-"53:82:68"=>159.09, #tennis courts?  cyan clay
-"94:94:84"=> 159.04, #capus? yel clay
+"94:85:84"=> 159.09, # cyan clay kinda pink on map
+"99:83:81"=> 159.09, # cyan clay kinda pink on map
+"53:82:68"=> 159.09, #tennis courts?  cyan clay
+"94:94:84"=> 159.09, #campus? cyan clay
 "92:85:90"=> 159.08, # light grey clay( docks)
 "99:99:99"=> 159.15, #road
 "86:61:61"=> 159.15, #road 
 "97:97:72"=> 159.15, #road
 "92:92:92"=> 1, #stone
+"80:80:78"=> 98, #church
+"68:61:54"=>98,#church
+"68:61:55"=>98,#church
 
+};
+__DATA__
 "xxxxxxxx"=> 30, #cobs
 "xxxxxxxx" => 95.4 	, #Yellow Stained Glass
 "92:91:89"=> 17.0, #oak wood
@@ -77,4 +86,3 @@ $X::map ={
  "81:77:74" => 95.12 	, #Brown Stained Glass
 
 
-};
