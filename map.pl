@@ -12,6 +12,7 @@ $X::map ={
 "81:92:65"=> 2, #grass
 "80:96:78"=> 2, # grass (park?)
 "80:100:94"=> 2, #grass (playground)
+"80:99:94"=> 2, #grass playground
 "56:79:46"=> 2, #grass (tree?)
 "67:81:62"=> 2, #grass (garden);
 "68:81:62"=> 2, #woods?
@@ -27,6 +28,8 @@ $X::map ={
 "88:88:88"=> 159.09, # private -cyan clay
 "87:87:87"=> 159.09, # private -cyan clay
 "88:87:87"=> 159.09, # private -cyan clay
+"87:88:88"=> 159.09, # private -cyan clay
+"88:88:87"=> 159.09, # private -cyan clay
 "94:85:84"=> 159.09, # cyan clay kinda pink on map
 "99:83:81"=> 159.09, # cyan clay kinda pink on map
 "53:82:68"=> 159.09, #tennis courts?  cyan clay
@@ -39,6 +42,7 @@ $X::map ={
 "80:80:78"=> 98, #church
 "68:61:54"=>98,#church
 "68:61:55"=>98,#church
+"96:82:82"=>1.05,#andesite
 
 };
 __DATA__
