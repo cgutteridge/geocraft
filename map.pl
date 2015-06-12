@@ -1,10 +1,3 @@
-$X::skip = {
-"80:80:80"=> 35.11, #blue wool
-"75:70:66" => 95.2 	, #Magenta Stained Glass
-"81:96:80"=> 30, #cobs
-"87:97:86" => 95.4 	, #Yellow Stained Glass
-
-};
 
 $X::map ={
 "85:81:78"=> 45, #building

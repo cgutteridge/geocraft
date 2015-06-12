@@ -2,14 +2,17 @@ package Minecraft::MapTiles;
 
 use Image::Magick;
 use Math::Trig;
+use strict;
+use warnings;
 
 sub new
 {
 	my( $class, %opts ) = @_;
 
 	my $self = bless { %opts },$class;
-	$self->{failcols} = 0;	
+	$self->{failcols} = {};
 	$self->{tiles} = {};	
+	$self->{colormap} = $self->colormap;
 
 	return $self;
 }
@@ -47,64 +50,102 @@ sub block_at
 		$self->{tiles}->{$tile}->Read( $self->{dir}."/$tile" );
 	}
 
+	my $pixel_x = POSIX::floor($self->{width}*$xr);
+	my $pixel_y = POSIX::floor($self->{height}*$yr);
+
+	my $scores = {};
+	my $best = "FAIL";
+	my $max = 0;
+	my $midcol="eh";
+	for( my $yy=-$self->{spread}; $yy<=$self->{spread}; ++$yy ) {
+		X: for( my $xx=-$self->{spread}; $xx<=$self->{spread}; ++$xx ) {
+			my $p_x = $pixel_x+$xx;
+			my $p_y = $pixel_y+$yy;
+			next if( $p_x<0 || $p_x>=$self->{width} );
+			next if( $p_y<0 || $p_y>=$self->{height} );
+			my @pixel = $self->{tiles}->{$tile}->GetPixel(x=>$p_x,y=>$p_y);
+			my $col = int( $pixel[0]*100 ).":".int( $pixel[1]*100 ).":".int($pixel[2]*100);
+			if( $xx==0 && $yy==0 ) { $midcol=$col;}
+			next X if( !$self->{colormap}->{$col} );
+
+			$scores->{$col}++;
+			if( $scores->{$col} > $max )
+			{
+				$max = $scores->{$col};
+				$best = $col;
+			}
+		}
+	}
+	if( $self->{colormap}->{$best} ) 
+	{ 
+		return $self->{colormap}->{$best};
+	}
+	$self->{failcols}->{$midcol}++;
+	if( defined $self->{default_block} )
+	{
+		return $self->{default_block};
+	}
 	return 1;
 }
 
+sub colormap
+{
+	return {
+"85:81:78"=> 45, #building
+"84:81:78"=> 45, #building
+"81:92:65"=> 2, #grass
+"80:96:78"=> 2, # grass (park?)
+"80:100:94"=> 2, #grass (playground)
+"80:99:94"=> 2, #grass playground
+"56:79:46"=> 2, #grass (tree?)
+"67:81:62"=> 2, #grass (garden);
+"68:81:62"=> 2, #woods?
+"80:92:65"=> 2, # grass?
+"96:93:71"=> 13, # carpark?
+"94:93:90"=> 159.03, #tarmac? 
+"94:93:91"=> 159.03, #tarmac
+"89:78:67"=> 3, #allotment, dirt
+"89:77:67"=> 3, #allotment dirt
+"89:77:66"=> 3, #allotment dirt
+"70:81:81"=> 9, # water
+"63:72:82"=> 181, #redsand
+"88:88:88"=> 159.09, # private -cyan clay
+"87:87:87"=> 159.09, # private -cyan clay
+"88:87:87"=> 159.09, # private -cyan clay
+"87:88:88"=> 159.09, # private -cyan clay
+"88:88:87"=> 159.09, # private -cyan clay
+"94:85:84"=> 159.09, # cyan clay kinda pink on map
+"99:83:81"=> 159.09, # cyan clay kinda pink on map
+"53:82:68"=> 159.09, #tennis courts?  cyan clay
+"94:94:84"=> 159.09, #campus? cyan clay
+"92:85:90"=> 159.08, # light grey clay( docks)
+"99:99:99"=> 159.15, #road
+"86:61:61"=> 159.15, #road 
+"97:97:72"=> 159.15, #road
+"92:92:92"=> 1, #stone
+"80:80:78"=> 98, #church
+"68:61:54"=>98,#church
+"68:61:55"=>98,#church
+"96:82:82"=>1.05,#andesite
+	};
+}
 
 1;	
+
 __DATA__
-	
-	
-			my $pixel_x = POSIX::floor($tile_width*$xr);
-			my $pixel_y = POSIX::floor($tile_height*$yr);
-	
-			my $scores = {};
-			my $best = "FAIL";
-			my $max = 0;
-			my $midcol="eh";
-			for( my $yy=-$SPREAD; $yy<=$SPREAD; ++$yy ) {
-				X: for( my $xx=-$SPREAD; $xx<=$SPREAD; ++$xx ) {
-					my $p_x = $pixel_x+$xx;
-					my $p_y = $pixel_y+$yy;
-					next if( $p_x<0 || $p_x>=$tile_width );
-					next if( $p_y<0 || $p_y>=$tile_height );
-					my @pixel = $tiles->{$tile}->GetPixel(x=>$p_x,y=>$p_y);
-					my $col = int( $pixel[0]*100 ).":".int( $pixel[1]*100 ).":".int($pixel[2]*100);
-					if( $xx==0 && $yy==0 ) { $midcol=$col;}
-					#if( $x==30 && $y==23 ) { print "$xx,$yy : $col\n"; }
-					#next X if( $X::skip->{$col} );
-					next X if( !$X::map->{$col} );
-	
-					$scores->{$col}++;
-					if( $scores->{$col} > $max )
-					{
-						$max = $scores->{$col};
-						$best = $col;
-					}
-				}
-			}
-			my $underblock = 3;
-			my $block = 57;
-$block =1; #nicer default blocks
-			if( $X::map->{$best} ) { $block = $X::map->{$best}; }
-	
-			my($lat1,$long1) = grid_to_ll( $e, $n );
+"xxxxxxxx"=> 30, #cobs
+"xxxxxxxx" => 95.4 	, #Yellow Stained Glass
+"92:91:89"=> 17.0, #oak wood
+"86:62:62"=> 14, #gold ore
+"57:66:83"=> 35.10, #purple wool
+"80:80:77"=> 35.05, #lime wool
+"75:75:74"=> 5.05, # dark oak
+"67:67:66"=> 35.13, #green wool
+"95:95:90"=> 170 , #hay
 
-			$mc_y = 5+POSIX::floor($elevation->ll( $lat, $long )) if $elevation;
 	
-			$failcols->{$midcol}++ if( $block == 57 );
-			$underblock = 3 if $block==9;
 
-#print "$mc_x,$mc_z: $block\n";
-#print ":: mcoffx=$mc_x_offset w=$width - x=$x -1\n";
-#print ":: mcoffz=$mc_z_offset h=$height - y=$y -1\n";
-			$world->set_block( $mc_x, $mc_y-1, $mc_z, $underblock );
-			$world->set_block( $mc_x, $mc_y, $mc_z, $block );
 
-		}
-	}
-	$world->save;
-}
 	
 
 
@@ -140,6 +181,8 @@ $block =1; #nicer default blocks
 				}
 			}
 ############
+			
+{
 			if( $OPTS->{EXTRUDE} && ($block == 45 || $block == 98))
 			{
 				my $BUILDINGSIZE=10;
@@ -152,10 +195,6 @@ $block =1; #nicer default blocks
 				}
 				# roof
 				$world->set_block( $mc_x, $mc_y+$BUILDINGSIZE+1, $mc_z, 44.00 );
-			}
-$X::skip={};
-$X::map={};
-require "map.pl";
 
 
 

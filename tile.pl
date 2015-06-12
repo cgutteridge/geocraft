@@ -28,9 +28,10 @@ my( $mc_x_offset,$mc_z_offset );
 ($lat,$long)=  (50.91948, -1.39561 ); # middle of city 
 ( $lat,$long)=  ( 50.93452, -1.397 ); #uni
 ( $lat,$long)=  ( 50.93531, -1.39871  ); #unidip
-( $lat,$long)=  ( 50.89266, -1.40567  ); #town quay end
 ($lat,$long) = ( 50.59614, -1.2001  ); #ventnor library
 ($lat,$long) = ( 50.59635, -1.2008); #front of ventnor church
+($lat,$long) = ( 50.59305, -1.2079 );#ventnor seafront
+( $lat,$long)=  ( 50.89266, -1.40567  ); #town quay end
 
 my $OPTS = {
 	MC_BL => [-80,-80],
@@ -39,16 +40,27 @@ my $OPTS = {
 
 $OPTS->{MAPTILES} = new Minecraft::MapTiles(
 	zoom=>19,
-	spread=>4,
+	spread=>3,
 	width=>256,
 	height=>256,
 	dir=>"$FindBin::Bin/tiles", 
 	url=>"http://b.tile.openstreetmap.org/",
+	default_block=>1,
 );
 
-$OPTS->{ELEVATION} = new Elevation( "$FindBin::Bin/ventnor-lidar",[101,-68] );
+#$OPTS->{ELEVATION} = new Elevation( "$FindBin::Bin/HeightData", [90,-80] );
+#$OPTS->{EXTRUDE}->{45} = [ 45,95.15,45,45,95.15,45,45,95.15,45, 44.0 ];
+#$OPTS->{EXTRUDE}->{98} = [ 98,95.15,98,98,95.15,98,98,95.15,98, 44.0 ];
 
-	#ELEVATION_DIR => "$FindBin::Bin/HeightData", ELEVATION_CORRECT=>[90,-80],
+#$OPTS->{ELEVATION} = new Elevation( "$FindBin::Bin/ventnor-lidar",[101,-68] );
+#$OPTS->{EXTRUDE}->{45} = [44.0];
+#$OPTS->{EXTEND_DOWNWARDS} = 8;
+
+$OPTS->{ELEVATION} = new Elevation( "$FindBin::Bin/soton-lidar",[99,-68] );
+$OPTS->{EXTRUDE}->{45} = [44.0];
+$OPTS->{EXTEND_DOWNWARDS} = 8;
+
+
 
 my $mc = new Minecraft( "$FindBin::Bin/saves" );
 my $world = $mc->world( $ARGV[0] );

@@ -1,6 +1,8 @@
 package Minecraft::Projection;
 
 use Geo::Coordinates::OSGB qw(ll_to_grid grid_to_ll);
+use strict;
+use warnings;
 
 sub new_from_ll
 {
@@ -34,8 +36,6 @@ sub render
 
 	# MC_BL = [x,z]	 (NW)
 	# MC_TR = [x,z]	 (SE)
-	# ELEVATION_DIR = dir
-	# ELEVATION_CORRECT = [x,z]
 	#my( $mc_ref_x,$mc_ref_z,  $e_ref,$n_ref,  $mc_x1,$mc_z1,  $mc_x2,$mc_z2 ) = @_;
 
 	die "x2<=x1" if $opts{MC_TR}->[0]<=$opts{MC_BL}->[0];
@@ -50,10 +50,14 @@ sub render
 			my $n = $self->{offset_n} - $z;
 			my($lat,$long) = grid_to_ll( $e, $n, $self->{grid} );
 
-			my $y = 10;
+			my $y = 2;
 			if( defined $opts{ELEVATION} )
 			{
-				$y = 5+POSIX::floor($opts{ELEVATION}->ll( $lat, $long )) 
+				$y = 2+POSIX::floor($opts{ELEVATION}->ll( $lat, $long )) 
+			}
+			if( defined $opts{EXTEND_DOWNWARDS} )
+			{
+				$y += $opts{EXTEND_DOWNWARDS};
 			}
 
 			my $block = 1;
@@ -61,7 +65,27 @@ sub render
 			{
 				$block = $opts{MAPTILES}->block_at( $lat,$long );
 			}
+			
 			$self->{world}->set_block( $x, $y, $z, $block );
+			if( defined $opts{EXTRUDE}->{$block} )
+			{
+				for( my $i=0; $i<@{$opts{EXTRUDE}->{$block}}; $i++ )
+				{
+					$self->{world}->set_block( $x, $y+1+$i, $z, $opts{EXTRUDE}->{$block}->[$i] );
+				}
+			}
+			if( defined $opts{EXTEND_DOWNWARDS} )
+			{
+				for( my $i=0; $i<$opts{EXTEND_DOWNWARDS}; $i++ )
+				{
+					$self->{world}->set_block( $x, $y-1-$i, $z, $block );
+				}
+				$y-=$opts{EXTEND_DOWNWARDS};
+			}
+			if( $block==9 ) # water
+			{
+				$self->{world}->set_block( $x, $y-1, $z, 3 );
+			}
 		}
 	}			
 }

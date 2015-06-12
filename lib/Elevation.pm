@@ -75,6 +75,8 @@ sub ll
 	my $S = $SW + ($SE-$SW)*$h_ratio;
 	my $height = $S + ($N-$S)*$v_ratio;
 
+	$height = 0 if( $height < 0 );
+
 	return $height;
 }
 
