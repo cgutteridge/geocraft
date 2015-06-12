@@ -3,26 +3,51 @@ package Elevation;
 
 use Geo::Coordinates::OSGB qw(ll_to_grid grid_to_ll);
 use POSIX;
+use Data::Dumper;
 use strict;
 use warnings;
 
 sub new 
 {
-	my( $class, $mapfile, $cellsize ) = @_;
+	my( $class, $heightdir, $correction ) = @_;
 
-	my $self = bless { cellsize=>$cellsize, files=>{}, cells=>{} }, $class;
+	if( !defined $correction ) { $correction = [0,0]; }
+	my $self = bless { files=>{}, cells=>{}, correction=>$correction }, $class;
 
-	open( my $mfh, "<", $mapfile );
-	while( my $line = <$mfh> )
+	opendir( my $hdir, $heightdir ) || die "Can't read elevation dir $heightdir";
+	while( my $file = readdir($hdir))
 	{
-		$line =~ s/\n//g;
-		$line =~ s/\r//g;
-		chomp $line;
-		my($line_north, $line_east ,$filename) = split( / /, $line );
-		$self->{files}->{$line_north}->{$line_east} = $filename;
+		next if( $file =~ m/^\./ );
+		my $filename = "$heightdir/$file";
+		open( my $fh, "<", $filename ) 
+			|| die "can't read elevation file $filename: $!";
+		my $metadata = {};
+		for(my $i=0;$i<6;++$i)
+		{
+			my $line = readline( $fh );
+			chomp $line;
+			my( $k,$v ) = split( /\s+/, $line );
+			$metadata->{$k}=$v;
+		}	
+		close( $fh );
+		if( defined $self->{ncols} && $metadata->{ncols} != $self->{ncols} )
+		{
+			die "$file had ncols=".$metadata->{ncols}.", expected ".$self->{ncols};
+		}
+		if( defined $self->{nrows} && $metadata->{nrows} != $self->{nrows} )
+		{
+			die "$file had nrows=".$metadata->{nrows}.", expected ".$self->{nrows};
+		}
+		if( defined $self->{cellsize} && $metadata->{cellsize} != $self->{cellsize} )
+		{
+			die "$file had cellsize=".$metadata->{cellsize}.", expected ".$self->{cellsize};
+		}
+		$self->{cellsize} = $metadata->{cellsize} if( !defined $self->{cellsize} );
+		$self->{nrows} = $metadata->{nrows} if( !defined $self->{nrows} );
+		$self->{ncols} = $metadata->{ncols} if( !defined $self->{ncols} );
+		# NODATA_value ??
+		$self->{files}->{$metadata->{yllcorner}}->{$metadata->{xllcorner}} = $filename;
 	}
-	close( $mfh );
-
 	return $self;
 }
 
@@ -30,7 +55,9 @@ sub ll
 {
 	my( $self, $lat, $long ) = @_;
 
-	my( $e, $n ) = ll_to_grid( $lat,$long, "WGS84" );
+	my( $e, $n ) = ll_to_grid( $lat,$long );
+	$e += $self->{correction}->[0];
+	$n += $self->{correction}->[1];
 	# Flatten to get SW cell corner
 	
 	my $ce = POSIX::floor( $e/$self->{cellsize} )*$self->{cellsize};
@@ -59,17 +86,14 @@ sub cell_elevation
 	{
 		return $self->{cells}->{$cell_n}->{$cell_e};
 	}
-	my $FILESCALE = 10000;
-	# assume 10K files for now
-	my $file_e = POSIX::floor( $cell_e / $FILESCALE )*$FILESCALE;
-	my $file_n = POSIX::floor( $cell_n / $FILESCALE )*$FILESCALE;
+	my $file_e = POSIX::floor( $cell_e / $self->{ncols} )*$self->{ncols};
+	my $file_n = POSIX::floor( $cell_n / $self->{nrows} )*$self->{nrows};
 
 	my $fn = $self->{files}->{ $file_n }->{ $file_e };
 	
 	if( !defined $fn ) { die "no elevation for $file_e,$file_n"; }
 	
-	my $file = "$FindBin::Bin/HeightData/$fn";
-	open( my $hfh, "<", $file ) || die "can't read $file";
+	open( my $hfh, "<", $fn ) || die "can't read $fn";
 	my @lines = <$hfh>;
 	close $hfh;
 
