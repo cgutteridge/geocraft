@@ -110,8 +110,10 @@ sub add_layer
 {
 	my( $self, $y, $type ) = @_;
 
+#print "ADD LAYER:$y,$type\n";
 	for( my $rel_z=0;$rel_z<512;++$rel_z) {
 		for( my $rel_x=0;$rel_x<512;++$rel_x) {
+#print "ADD LAYER BLOCK: $rel_x,$y,$rel_z\n";
 			$self->set_block( $rel_x,$y,$rel_z, $type );
 		}
 	}

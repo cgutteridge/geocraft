@@ -1,16 +1,54 @@
 package Minecraft::Projection;
 
-use Geo::Coordinates::OSGB qw(ll_to_grid grid_to_ll);
+use Geo::Coordinates::OSGB;
+use Math::Trig;
 use strict;
 use warnings;
 
 sub new_from_ll
 {
 	my( $class, $world, $mc_ref_x,$mc_ref_z, $lat,$long, $grid ) = @_;
-	
-	my( $e, $n ) = ll_to_grid( $lat,$long, $grid);
+
+	my( $e, $n ) = ll_to_grid( $lat,$long, $grid );
+
 	return $class->new( $world, $mc_ref_x,$mc_ref_z,  $e,$n,  $grid );
 }
+
+my $ZOOM = 18;
+my $M_PER_PIX = 0.596;
+my $TILE_W = 256;
+my $TILE_H = 256;
+sub ll_to_grid
+{
+	my( $lat, $long, $grid ) = @_;
+	#print "ll_to_grid($lat,$long)\n";
+
+	if( defined $grid && $grid eq "MERC" )
+	{
+		# inverting north/south for some reason -- seems to work
+		my $e = ($long+180)/360 * 2**$ZOOM * ($TILE_W * $M_PER_PIX);	
+		my $n = -(1 - log(tan(deg2rad($lat)) + sec(deg2rad($lat)))/pi)/2 * 2**$ZOOM * ($TILE_H * $M_PER_PIX);
+		return( $e, $n );
+	}
+
+	return Geo::Coordinates::OSGB::ll_to_grid( $lat,$long, $grid );
+}
+sub grid_to_ll
+{
+	my( $e, $n, $grid ) = @_;
+	#print "grid_to_ll($e,$n)\n";
+	if( defined $grid && $grid eq "MERC" )
+	{
+		my $lat = rad2deg(atan(sinh( pi - (2 * pi * -$n / (2**$ZOOM * ($TILE_H * $M_PER_PIX))) )));
+		my $long = (($e / ($TILE_W * $M_PER_PIX)) / 2**$ZOOM)*360-180;
+		return( $lat, $long );
+	}
+
+	return Geo::Coordinates::OSGB::grid_to_ll( $e,$n, $grid );
+}
+
+
+
 
 sub new
 {
@@ -40,12 +78,13 @@ sub render
 
 	die "x2<=x1" if $opts{MC_TR}->[0]<=$opts{MC_BL}->[0];
 	die "z2<=z1" if $opts{MC_TR}->[1]<=$opts{MC_BL}->[1];
-
+	my $block_count = 0;
 	for( my $z=$opts{MC_BL}->[1]; $z<=$opts{MC_TR}->[1]; ++$z ) 
 	{
 		print STDERR $opts{MC_BL}->[0]."..".$opts{MC_TR}->[0].",".$z."\n";
-		for( my $x=$opts{MC_BL}->[1]; $x<=$opts{MC_TR}->[1]; ++$x ) 
+		for( my $x=$opts{MC_BL}->[0]; $x<=$opts{MC_TR}->[0]; ++$x ) 
 		{
+#print "LOOP($x,$z)\n";
 			my $e = $self->{offset_e} + $x;
 			my $n = $self->{offset_n} - $z;
 			my($lat,$long) = grid_to_ll( $e, $n, $self->{grid} );
@@ -82,12 +121,15 @@ sub render
 				}
 				$y-=$opts{EXTEND_DOWNWARDS};
 			}
-			if( $block==9 ) # water
+			if( $block==9 || $block==12 || $block==12.1 || $block==13 || $block==11 ) # water
 			{
 				$self->{world}->set_block( $x, $y-1, $z, 3 );
 			}
+			$block_count++;
+			if( $block_count % (256*256) == 0 ) { $self->{world}->save(); }
 		}
 	}			
+	$self->{world}->save(); 
 }
 
 1;

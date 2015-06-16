@@ -42,8 +42,8 @@ sub block_at
 	{
 		if( !-e "$self->{dir}/$tile" )
 		{
-			my $cmd = "curl '".$self->{url}.$self->{zoom}."/$xtile/$ytile.png' > ".$self->{dir}."/$tile";
-			print "$cmd\n";
+			my $cmd = "curl -s '".$self->{url}.$self->{zoom}."/$xtile/$ytile.png' > ".$self->{dir}."/$tile";
+			#print "$cmd\n";
 			`$cmd`;
 		}
 		$self->{tiles}->{$tile} = new Image::Magick;
@@ -64,8 +64,10 @@ sub block_at
 			next if( $p_x<0 || $p_x>=$self->{width} );
 			next if( $p_y<0 || $p_y>=$self->{height} );
 			my @pixel = $self->{tiles}->{$tile}->GetPixel(x=>$p_x,y=>$p_y);
+			next X if( !defined $pixel[0] );
 			my $col = int( $pixel[0]*100 ).":".int( $pixel[1]*100 ).":".int($pixel[2]*100);
 			if( $xx==0 && $yy==0 ) { $midcol=$col;}
+#print $col."\n" if( !$self->{colormap}->{$col} );
 			next X if( !$self->{colormap}->{$col} );
 
 			$scores->{$col}++;
@@ -91,42 +93,53 @@ sub block_at
 sub colormap
 {
 	return {
-"85:81:78"=> 45, #building
-"84:81:78"=> 45, #building
-"81:92:65"=> 2, #grass
-"80:96:78"=> 2, # grass (park?)
-"80:100:94"=> 2, #grass (playground)
-"80:99:94"=> 2, #grass playground
-"56:79:46"=> 2, #grass (tree?)
-"67:81:62"=> 2, #grass (garden);
-"68:81:62"=> 2, #woods?
-"80:92:65"=> 2, # grass?
-"96:93:71"=> 13, # carpark?
-"94:93:90"=> 159.03, #tarmac? 
-"94:93:91"=> 159.03, #tarmac
-"89:78:67"=> 3, #allotment, dirt
-"89:77:67"=> 3, #allotment dirt
-"89:77:66"=> 3, #allotment dirt
-"70:81:81"=> 9, # water
-"63:72:82"=> 181, #redsand
-"88:88:88"=> 159.09, # private -cyan clay
-"87:87:87"=> 159.09, # private -cyan clay
-"88:87:87"=> 159.09, # private -cyan clay
-"87:88:88"=> 159.09, # private -cyan clay
-"88:88:87"=> 159.09, # private -cyan clay
-"94:85:84"=> 159.09, # cyan clay kinda pink on map
-"99:83:81"=> 159.09, # cyan clay kinda pink on map
+"100:94:72"=>12.0,#sand
 "53:82:68"=> 159.09, #tennis courts?  cyan clay
-"94:94:84"=> 159.09, #campus? cyan clay
-"92:85:90"=> 159.08, # light grey clay( docks)
-"99:99:99"=> 159.15, #road
-"86:61:61"=> 159.15, #road 
-"97:97:72"=> 159.15, #road
-"92:92:92"=> 1, #stone
-"80:80:78"=> 98, #church
+"56:79:46"=> 2, #grass (tree?)
+"60:60:60"=>17,#oak?!?
+"63:72:82"=> 181, #redsand
+"67:81:62"=> 2, #grass (garden);
 "68:61:54"=>98,#church
 "68:61:55"=>98,#church
+"68:81:62"=> 2, #woods?
+"70:81:81"=> 9, # water
+"80:100:94"=> 2, #grass (playground)
+"80:80:78"=> 98, #church
+"80:92:65"=> 2, # grass?
+"80:96:78"=> 2, # grass (park?)
+"80:99:94"=> 2, #grass playground
+"81:92:65"=> 2, #grass
+"84:81:78"=> 45, #building
+"85:81:78"=> 45, #building
+"86:61:61"=> 159.15, #road 
+"87:87:87"=> 159.09, # private -cyan clay
+"87:88:88"=> 159.09, # private -cyan clay
+"88:87:87"=> 159.09, # private -cyan clay
+"88:88:87"=> 159.09, # private -cyan clay
+"88:88:88"=> 159.09, # private -cyan clay
+"89:77:66"=> 3, #allotment dirt
+"89:77:67"=> 3, #allotment dirt
+"89:78:67"=> 3, #allotment, dirt
+"92:85:90"=> 159.08, # light grey clay( docks)
+"92:92:92"=> 1, #stone
+"94:85:84"=> 159.09, # cyan clay kinda pink on map
+"94:93:90"=> 159.03, #tarmac? 
+"94:93:91"=> 159.03, #tarmac
+"94:94:84"=> 159.09, #campus? cyan clay
 "96:82:82"=>1.05,#andesite
+"96:93:71"=> 13, # carpark?
+"97:97:72"=> 159.15, #road
+"99:83:81"=> 159.09, # cyan clay kinda pink on map
+"99:94:72"=>12.0,#sand
+"99:99:99"=> 159.15, #road
+
+#"71:70:57"=>170, #hay
+#"97:83:66"=>95.13, #green wool
+
+#EDGING TO IGNORE
+#"97:83:66"=>5.05, #dark oak
+#"72:87:80"=>14, some random edging
+
 	};
 }
 

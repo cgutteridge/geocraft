@@ -48,6 +48,8 @@ sub new
 		# NODATA_value ??
 		$self->{files}->{$metadata->{yllcorner}}->{$metadata->{xllcorner}} = $filename;
 	}
+	$self->{filesize_e} = $self->{ncols}*$self->{cellsize};
+	$self->{filesize_n} = $self->{nrows}*$self->{cellsize};
 	return $self;
 }
 
@@ -67,6 +69,11 @@ sub ll
 	my $NW = $self->cell_elevation( $ce, $cn+$self->{cellsize} );
 	my $NE = $self->cell_elevation( $ce+$self->{cellsize}, $cn+$self->{cellsize} );
 	my $SE = $self->cell_elevation( $ce+$self->{cellsize}, $cn );
+	if( !defined $SW || !defined $NW || !defined $SE || !defined $NE )
+	{
+print "no data $ce, $cn\n";
+		return 0;
+	}	
 
 	my $h_ratio = ($e - $ce ) / $self->{cellsize};
 	my $v_ratio = ($n - $cn ) / $self->{cellsize};
@@ -88,12 +95,16 @@ sub cell_elevation
 	{
 		return $self->{cells}->{$cell_n}->{$cell_e};
 	}
-	my $file_e = POSIX::floor( $cell_e / $self->{ncols} )*$self->{ncols};
-	my $file_n = POSIX::floor( $cell_n / $self->{nrows} )*$self->{nrows};
+	my $file_e = POSIX::floor( $cell_e / $self->{filesize_e} )*$self->{filesize_e};
+	my $file_n = POSIX::floor( $cell_n / $self->{filesize_n} )*$self->{filesize_n};
 
 	my $fn = $self->{files}->{ $file_n }->{ $file_e };
 	
-	if( !defined $fn ) { die "no elevation for $file_e,$file_n"; }
+	if( !defined $fn ) 
+	{ 
+		print "no elevation for $file_e,$file_n\n"; 
+		return undef;
+	}
 	
 	open( my $hfh, "<", $fn ) || die "can't read $fn";
 	my @lines = <$hfh>;

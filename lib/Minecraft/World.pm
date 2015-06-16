@@ -31,11 +31,11 @@ sub c
 {
 	my( $x,$y,$z ) = @_;
 	
-	my $rx = abs($x)%512;
-	my $rz = abs($z)%512;
+	my $rx = $x%512;
+	my $rz = $z%512;
 
-	$rx = 512-$rx if $x<0;
-	$rz = 512-$rz if $z<0;
+	#$rx = 511-$rx if $x<0;
+	#$rz = 511-$rz if $z<0;
 
 	return ($rx,$y,$rz);
 }
@@ -146,8 +146,9 @@ sub init_region
 
 	print "INIT REGION $r_x,$r_z .. ";
 	$self->{regions}->{$r_z}->{$r_x} = new Minecraft::Region();	
-	$self->{regions}->{$r_z}->{$r_x}->add_layer( 0, 7 ); # add bedrock
 	$self->{regions}->{$r_z}->{$r_x}->{_changed} = 1;
+return;
+	$self->{regions}->{$r_z}->{$r_x}->add_layer( 0, 7 ); # add bedrock
 	print "done\n";
 }
 
