@@ -90,19 +90,33 @@ sub render
 			my($lat,$long) = grid_to_ll( $e, $n, $self->{grid} );
 
 			my $y = 2;
+			my $el;
 			if( defined $opts{ELEVATION} )
 			{
-				$y = 2+POSIX::floor($opts{ELEVATION}->ll( $lat, $long )) 
+				$el = POSIX::floor($opts{ELEVATION}->ll( $lat, $long ));
+				$y = $el+2;
 			}
 			if( defined $opts{EXTEND_DOWNWARDS} )
 			{
 				$y += $opts{EXTEND_DOWNWARDS};
 			}
 
+			if( defined $opts{FLOOD} && $opts{FLOOD}>$el )
+			{
+				for( my $yi = $y+$opts{FLOOD}-$el; $yi>$y; $yi-- )
+				{
+					$self->{world}->set_block( $x, $yi, $z, 9 );
+				}
+			}
+
 			my $block = 1;
 			if( defined $opts{MAPTILES} )
 			{
 				$block = $opts{MAPTILES}->block_at( $lat,$long );
+			}
+			if( defined $opts{BLOCK} )
+			{
+				$block = $opts{BLOCK};
 			}
 			
 			$self->{world}->set_block( $x, $y, $z, $block );
@@ -125,6 +139,9 @@ sub render
 			{
 				$self->{world}->set_block( $x, $y-1, $z, 3 );
 			}
+
+
+
 			$block_count++;
 			if( $block_count % (256*256) == 0 ) { $self->{world}->save(); }
 		}

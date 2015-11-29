@@ -18,6 +18,7 @@ sub new
 	while( my $file = readdir($hdir))
 	{
 		next if( $file =~ m/^\./ );
+		next if( $file !~ m/\.asc$/ );
 		my $filename = "$heightdir/$file";
 		open( my $fh, "<", $filename ) 
 			|| die "can't read elevation file $filename: $!";
@@ -58,10 +59,23 @@ sub ll
 	my( $self, $lat, $long ) = @_;
 
 	my( $e, $n ) = ll_to_grid( $lat,$long );
+	return $self->en( $e,$n );
+}
+
+sub en
+{
+	my( $self, $e, $n ) = @_;
+
 	$e += $self->{correction}->[0];
 	$n += $self->{correction}->[1];
 	# Flatten to get SW cell corner
+	return $self->raw_en( $e,$n );
+}
 	
+sub raw_en
+{
+	my( $self, $e, $n ) = @_;
+
 	my $ce = POSIX::floor( $e/$self->{cellsize} )*$self->{cellsize};
 	my $cn = POSIX::floor( $n/$self->{cellsize} )*$self->{cellsize};
 
