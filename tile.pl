@@ -12,6 +12,18 @@ use Minecraft::MapTiles;
 use strict;
 use warnings;
 
+my $worldname = $ARGV[0];
+if( -e "$FindBin::Bin/saves/$worldname" )
+{
+	die "World Already exists.";
+}
+`cp -a "$FindBin::Bin/saves/BedRock" "$FindBin::Bin/saves/$worldname"`;
+
+my $mc = new Minecraft( "$FindBin::Bin/saves" );
+my $world = $mc->world( $worldname );
+
+
+
 
 ####################################################
 # actual options
@@ -32,10 +44,6 @@ my( $mc_x_offset,$mc_z_offset );
 ( $lat,$long)=  ( 50.89266, -1.40567  ); #town quay end
 ( $lat,$long)=  ( 50.90871, -1.40457); #arthouse
 
-#($lat,$long) = (  43.65909, -79.31193  ); $grid="MERC"; #toronto
-#($lat,$long) = (  43.66031, -79.30658  ); $grid="MERC"; #torontobeach
-#($lat,$long) = ( 43.6529,-79.3045 ); $grid= "MERC"; # toronto se
-
 ($lat,$long) = ( 50.59332, -1.20502 );#ventnor haven
 
 ( $lat,$long)=  ( 50.88999, -1.38677); # offset used for SotonLidar
@@ -45,59 +53,37 @@ my( $mc_x_offset,$mc_z_offset );
 # corner of SUSU
 ( $lat,$long)=  ( 50.93502, -1.39806 );
 
+# east corner of staff club
+($lat,$long) = ( 50.93543, -1.39698 );
+
 my $OPTS = {};
 
 #ventnorfull
 # <--------coast--------->: 
 # W:-1500 E:200 S:500 N:0
 
-$OPTS->{MC_BL} = [-256,-256];
-$OPTS->{MC_TR} = [256,256];
-$OPTS->{MC_TR} = [256,256];
+$OPTS->{MC_BL} = [-200,-200];
+$OPTS->{MC_TR} = [200,200];
 
+$OPTS->{MAPTILES} = new Minecraft::MapTiles(
+	zoom=>19,
+	spread=>3,
+	width=>256,
+	height=>256,
+	dir=>"$FindBin::Bin/tiles", 
+	url=>"http://b.tile.openstreetmap.org/",
+	default_block=>1,
+);
 
-#$OPTS->{MAPTILES} = new Minecraft::MapTiles(
-#	zoom=>19,
-#	spread=>3,
-#	width=>256,
-#	height=>256,
-#	dir=>"$FindBin::Bin/tiles", 
-#	url=>"http://b.tile.openstreetmap.org/",
-#	default_block=>1,
-#);
-#$OPTS->{ELEVATION} = new Elevation( "$FindBin::Bin/HeightData", [101,-62] );
-#$OPTS->{EXTRUDE}->{45} = [ 45,95.15,45,45,95.15,45,45,95.15,45, 44.0 ];
-#$OPTS->{EXTRUDE}->{98} = [ 98,95.15,98,98,95.15,98,98,95.15,98, 44.0 ];
-#$OPTS->{EXTEND_DOWNWARDS} = 12;
-
-#$OPTS->{ELEVATION} = new Elevation( "$FindBin::Bin/HeightData", [90,-80] );
-#$OPTS->{EXTRUDE}->{45} = [ 45,95.15,45,45,95.15,45,45,95.15,45, 44.0 ];
-#$OPTS->{EXTRUDE}->{98} = [ 98,95.15,98,98,95.15,98,98,95.15,98, 44.0 ];
-
-#$OPTS->{ELEVATION} = new Elevation( "$FindBin::Bin/ventnor-lidar",[101,-68] );
-
-
-# $OPTS->{ELEVATION} = new Elevation( "$FindBin::Bin/soton-lidar",[101,-62] );
-# $OPTS->{EXTRUDE}->{45} = [44.0];
-# $OPTS->{EXTEND_DOWNWARDS} = 20;
-
-# $OPTS->{ELEVATION} = new Elevation( "$FindBin::Bin/ventnor-lidar",[101,-68] );
-# $OPTS->{EXTRUDE}->{45} = [44.0];
-# $OPTS->{EXTEND_DOWNWARDS} = 9;
-
-
-# $OPTS->{EXTRUDE}->{45} = [44.0];
 $OPTS->{EXTEND_DOWNWARDS} = 9;
 
-# $OPTS->{FLOOD} = 8;
-$OPTS->{ELEVATION} = new Elevation( "/Users/cjg/Projects/LIDAR-DSM-1M-SU41/DSM",[0,0] );
+$OPTS->{DTM} = new Elevation( "/Users/cjg/Projects/LIDAR-DSM-1M-SU41/DTM" );
+$OPTS->{DSM} = new Elevation( "/Users/cjg/Projects/LIDAR-DSM-1M-SU41/DSM" );
 
-my $mc = new Minecraft( "$FindBin::Bin/saves" );
-my $world = $mc->world( $ARGV[0] );
-my $p = Minecraft::Projection->new_from_ll( $world, 0,0, $lat,$long, $grid );
+my $p = Minecraft::Projection->new_from_ll( $world, 0,0, $lat,$long, "OSGB36" );
+
 $p->render( %$OPTS );
-$OPTS->{ELEVATION} = new Elevation( "/Users/cjg/Projects/LIDAR-DSM-1M-SU41/DTM",[0,0] );
-$OPTS->{BLOCK} = 3;
-$p->render( %$OPTS );
+
+
 
 exit;

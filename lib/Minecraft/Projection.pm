@@ -2,6 +2,7 @@ package Minecraft::Projection;
 
 use Geo::Coordinates::OSGB;
 use Math::Trig;
+use Data::Dumper;
 use strict;
 use warnings;
 
@@ -10,7 +11,7 @@ sub new_from_ll
 	my( $class, $world, $mc_ref_x,$mc_ref_z, $lat,$long, $grid ) = @_;
 
 	my( $e, $n ) = ll_to_grid( $lat,$long, $grid );
-
+print "new world, base: $e,$n\n";
 	return $class->new( $world, $mc_ref_x,$mc_ref_z,  $e,$n,  $grid );
 }
 
@@ -30,19 +31,32 @@ sub ll_to_grid
 		my $n = -(1 - log(tan(deg2rad($lat)) + sec(deg2rad($lat)))/pi)/2 * 2**$ZOOM * ($TILE_H * $M_PER_PIX);
 		return( $e, $n );
 	}
+	if( defined $grid && $grid eq "OSGB36" )
+	{
+		my ($x, $y) = Geo::Coordinates::OSGB::ll_to_grid($lat, $long, 'ETRS89'); # or 'WGS84'
+		my( $e,$n)= Geo::Coordinates::OSTN02::ETRS89_to_OSGB36($x, $y );
+	print "$lat,$long =$grid=> $e,$n\n";
+		return( $e, $n );
+	}
 
 	return Geo::Coordinates::OSGB::ll_to_grid( $lat,$long, $grid );
 }
 sub grid_to_ll
 {
 	my( $e, $n, $grid ) = @_;
-	#print "grid_to_ll($e,$n)\n";
+
 	if( defined $grid && $grid eq "MERC" )
 	{
 		my $lat = rad2deg(atan(sinh( pi - (2 * pi * -$n / (2**$ZOOM * ($TILE_H * $M_PER_PIX))) )));
 		my $long = (($e / ($TILE_W * $M_PER_PIX)) / 2**$ZOOM)*360-180;
 		return( $lat, $long );
 	}
+	if( defined $grid && $grid eq "OSGB36" )
+	{
+		my( $x,$y)= Geo::Coordinates::OSTN02::OSGB36_to_ETRS89($e, $n );
+		return Geo::Coordinates::OSGB::grid_to_ll($x, $y, 'ETRS89'); # or 'WGS84'
+	}
+
 
 	return Geo::Coordinates::OSGB::grid_to_ll( $e,$n, $grid );
 }
@@ -90,12 +104,26 @@ sub render
 			my($lat,$long) = grid_to_ll( $e, $n, $self->{grid} );
 
 			my $y = 2;
-			my $el;
-			if( defined $opts{ELEVATION} )
-			{
-				$el = POSIX::floor($opts{ELEVATION}->ll( $lat, $long ));
-				$y = $el+2;
+			my $el = 0;
+			my $feature_height = 0;
+			my $el2;
+			my $dsm;
+			my $dtm;
+		
+			if( $opts{ELEVATION} )
+			{	
+				$dsm = $opts{ELEVATION}->ll( "DSM", $lat, $long );
+				$dtm = $opts{ELEVATION}->ll( "DTM", $lat, $long );
+				$el = $dtm;
+				$el = $dsm if( !defined $el );
+				if( defined $dsm && defined $dtm )
+				{
+					$feature_height = int($dsm-$dtm);
+				}
 			}
+			
+			$y = $el+2;
+		
 			if( defined $opts{EXTEND_DOWNWARDS} )
 			{
 				$y += $opts{EXTEND_DOWNWARDS};
@@ -127,20 +155,53 @@ sub render
 					$self->{world}->set_block( $x, $y+1+$i, $z, $opts{EXTRUDE}->{$block}->[$i] );
 				}
 			}
+			my $bottom=$y;
 			if( defined $opts{EXTEND_DOWNWARDS} )
 			{
 				for( my $i=0; $i<$opts{EXTEND_DOWNWARDS}; $i++ )
 				{
 					$self->{world}->set_block( $x, $y-1-$i, $z, $block );
 				}
-				$y-=$opts{EXTEND_DOWNWARDS};
+				$bottom-=$opts{EXTEND_DOWNWARDS};
 			}
-			if( $block==9 || $block==12 || $block==12.1 || $block==13 || $block==11 ) # water
+			# put a dirt block under water and lava and other
+			# blocks which need support
+			if( $block==9 || $block==12 || $block==12.1 || $block==13 || $block==11 ) 
 			{
-				$self->{world}->set_block( $x, $y-1, $z, 3 );
+				$self->{world}->set_block( $x, $bottom-1, $z, 3 );
 			}
 
+			# now look at difference between DTM and DSM
 
+			my $up_block = $block;
+			$up_block = "35.7";
+			my $min = 3;
+			my $fmap = {
+				"3.1"=>[ 18, 0 ], #dirt
+				"3"=>[ 18, 0 ], #dirt
+				"2"=>[ 18, 0 ], #grass
+				"45"=>[ 45, 0 ], #brick
+				"8"=>[ 1, 10 ], # water
+				"9"=>[ 1, 10 ], # water
+			};
+			if( $fmap->{$block} ) { 
+				$up_block = $fmap->{$block}->[0];
+				$min = $fmap->{$block}->[1];
+			}
+			if( $up_block eq "45" && $feature_height < 3 ) { $feature_height=3; }
+			if( $feature_height >= $min )
+			{
+				for( my $up=1; $up<= $feature_height; ++$up )
+				{
+					$self->{world}->set_block( $x, $y+$up, $z, $up_block );
+				}
+				# top-off brick things in dark grey
+				#$self->{world}->set_block( $x, $y+$feature_height, $z, "3" );
+				if( $up_block eq "45" )
+				{
+					$self->{world}->set_block( $x, $y+$feature_height+1, $z, "171.8" );
+				}
+			}
 
 			$block_count++;
 			if( $block_count % (256*256) == 0 ) { $self->{world}->save(); }

@@ -107,7 +107,7 @@ sub colormap
 "80:80:78"=> 98, #church
 "80:92:65"=> 2, # grass?
 "80:96:78"=> 2, # grass (park?)
-"80:99:94"=> 2, #grass playground
+"80:99:94"=> 2, #grass playground?
 "81:92:65"=> 2, #grass
 "84:81:78"=> 45, #building
 "85:81:78"=> 45, #building
@@ -117,9 +117,9 @@ sub colormap
 "88:87:87"=> 159.09, # private -cyan clay
 "88:88:87"=> 159.09, # private -cyan clay
 "88:88:88"=> 159.09, # private -cyan clay
-"89:77:66"=> 3, #allotment dirt
-"89:77:67"=> 3, #allotment dirt
-"89:78:67"=> 3, #allotment, dirt
+"89:77:66"=> "3.01", #allotment course dirt
+"89:77:67"=> "3.01", #allotment course dirt
+"89:78:67"=> "3.01", #allotment, course dirt
 "92:85:90"=> 159.08, # light grey clay( docks)
 "92:92:92"=> 1, #stone
 "94:85:84"=> 159.09, # cyan clay kinda pink on map
@@ -193,37 +193,3 @@ __DATA__
 					$world->set_block( $mc_x,$mc_y+1+$i,$mc_z, 17);
 				}
 			}
-############
-			
-{
-			if( $OPTS->{EXTRUDE} && ($block == 45 || $block == 98))
-			{
-				my $BUILDINGSIZE=10;
-				for( my $i=0;$i<$BUILDINGSIZE;++$i ) 
-				{
-					my $rblock = $block;
-					if( $i % 3 == 1 ) { $rblock = 95.15; }
-	
-					$world->set_block( $mc_x, $mc_y+$i+1, $mc_z, $rblock );
-				}
-				# roof
-				$world->set_block( $mc_x, $mc_y+$BUILDINGSIZE+1, $mc_z, 44.00 );
-
-
-
-####################################################
-my $c={};
-foreach my $failcol ( keys %$failcols )
-{
-	my $v = $failcols->{$failcol};
-	$c->{sprintf("%10d %s", $v, $failcol )} = "$failcol : $v";
-}
-foreach my $key ( sort keys %$c )
-{
-	print $c->{$key}."\n";
-}
-####################################################
-exit;
-
-
-

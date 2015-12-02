@@ -2,90 +2,148 @@
 package Elevation;
 
 use Geo::Coordinates::OSGB qw(ll_to_grid grid_to_ll);
+use Geo::Coordinates::OSTN02;
 use POSIX;
 use Data::Dumper;
+use JSON::PP;
 use strict;
 use warnings;
 
 sub new 
 {
-	my( $class, $heightdir, $correction ) = @_;
+	my( $class, $height_dir, $cat_dir, $tmp_dir, $correction ) = @_;
 
 	if( !defined $correction ) { $correction = [0,0]; }
-	my $self = bless { files=>{}, cells=>{}, correction=>$correction }, $class;
+	my $self = bless { 
+		files => {}, 
+		loaded => {}, 
+		cells => {}, 
+		height_dir => $height_dir,
+		cat_dir => $cat_dir,
+		tmp_dir => $tmp_dir,
+		correction => $correction }, $class;
 
-	opendir( my $hdir, $heightdir ) || die "Can't read elevation dir $heightdir";
-	while( my $file = readdir($hdir))
-	{
-		next if( $file =~ m/^\./ );
-		next if( $file !~ m/\.asc$/ );
-		my $filename = "$heightdir/$file";
-		open( my $fh, "<", $filename ) 
-			|| die "can't read elevation file $filename: $!";
-		my $metadata = {};
-		for(my $i=0;$i<6;++$i)
-		{
-			my $line = readline( $fh );
-			chomp $line;
-			my( $k,$v ) = split( /\s+/, $line );
-			$metadata->{$k}=$v;
-		}	
-		close( $fh );
-		if( defined $self->{ncols} && $metadata->{ncols} != $self->{ncols} )
-		{
-			die "$file had ncols=".$metadata->{ncols}.", expected ".$self->{ncols};
-		}
-		if( defined $self->{nrows} && $metadata->{nrows} != $self->{nrows} )
-		{
-			die "$file had nrows=".$metadata->{nrows}.", expected ".$self->{nrows};
-		}
-		if( defined $self->{cellsize} && $metadata->{cellsize} != $self->{cellsize} )
-		{
-			die "$file had cellsize=".$metadata->{cellsize}.", expected ".$self->{cellsize};
-		}
-		$self->{cellsize} = $metadata->{cellsize} if( !defined $self->{cellsize} );
-		$self->{nrows} = $metadata->{nrows} if( !defined $self->{nrows} );
-		$self->{ncols} = $metadata->{ncols} if( !defined $self->{ncols} );
-		# NODATA_value ??
-		$self->{files}->{$metadata->{yllcorner}}->{$metadata->{xllcorner}} = $filename;
-	}
+	$self->{cellsize} = 1;
+	$self->{nrows} = 1000;
+	$self->{ncols} = 1000;
 	$self->{filesize_e} = $self->{ncols}*$self->{cellsize};
 	$self->{filesize_n} = $self->{nrows}*$self->{cellsize};
+
+	foreach my $model ( "DSM","DTM" ) 
+	{
+		opendir( my $hdir, $height_dir."/$model" ) || die "Can't read elevation dir $height_dir";
+		while( my $file = readdir($hdir))
+		{
+			next if( $file =~ m/^\./ );
+			next if( $file !~ m/\.asc$/ );
+			$self->add_file( "$height_dir/$model/$file", $model );
+		}
+	}
+
 	return $self;
+}
+
+sub download
+{
+	my( $self, $file_e, $file_n ) = @_;
+
+	print "($file_e)($file_n)\n";
+	my $filename = sprintf( 
+		"%s/%04d-%04d.json",
+		$self->{cat_dir},
+		POSIX::floor( $file_e/10000 )*10,
+		POSIX::floor( $file_n/10000 )*10 );
+	if( $self->{loaded}->{$filename} )
+	{
+		return; 
+	}
+
+	print $filename."\n";
+
+	local $/;
+	open( my $fh, "<", $filename ) || die "Can't read $filename";
+	my $json_text   = <$fh>;
+	close $fh;
+	my $cat_record = decode_json( $json_text );
+
+	my $target = {};
+	foreach my $item ( @$cat_record )
+	{
+		my $id = $item->{metaDataUrl};
+		$id =~ s/1$//;
+		$target->{$id} = $item->{url};
+	}
+	print Dumper( $target );
+
+
+	$self->{loaded}->{$filename} = 1;
+}
+
+sub add_file
+{
+	my( $self, $filename, $model ) = @_;
+
+	open( my $fh, "<", $filename ) 
+		|| die "can't read elevation file $filename: $!";
+	my $metadata = {};
+	for(my $i=0;$i<6;++$i)
+	{
+		my $line = readline( $fh );
+		chomp $line;
+		my( $k,$v ) = split( /\s+/, $line );
+		$metadata->{$k}=$v;
+	}	
+	close( $fh );
+	if( defined $self->{ncols} && $metadata->{ncols} != $self->{ncols} )
+	{
+		die "$filename had ncols=".$metadata->{ncols}.", expected ".$self->{ncols};
+	}
+	if( defined $self->{nrows} && $metadata->{nrows} != $self->{nrows} )
+	{
+		die "$filename had nrows=".$metadata->{nrows}.", expected ".$self->{nrows};
+	}
+	if( defined $self->{cellsize} && $metadata->{cellsize} != $self->{cellsize} )
+	{
+		die "$filename had cellsize=".$metadata->{cellsize}.", expected ".$self->{cellsize};
+	}
+	$self->{files}->{$model}->{$metadata->{yllcorner}}->{$metadata->{xllcorner}} = $filename;
 }
 
 sub ll
 {
-	my( $self, $lat, $long ) = @_;
+	my( $self, $model, $lat, $long ) = @_;
 
-	my( $e, $n ) = ll_to_grid( $lat,$long );
-	return $self->en( $e,$n );
+	my ($x, $y) = Geo::Coordinates::OSGB::ll_to_grid($lat, $long, 'ETRS89'); # or 'WGS84'
+	my ($e, $n) = Geo::Coordinates::OSTN02::ETRS89_to_OSGB36($x, $y );
+	return $self->en( $model, $e,$n );
 }
 
 sub en
 {
-	my( $self, $e, $n ) = @_;
+	my( $self, $model, $e, $n ) = @_;
 
 	$e += $self->{correction}->[0];
 	$n += $self->{correction}->[1];
 	# Flatten to get SW cell corner
-	return $self->raw_en( $e,$n );
+	return $self->raw_en( $model, $e,$n );
 }
 	
 sub raw_en
 {
-	my( $self, $e, $n ) = @_;
+	my( $self, $model, $e, $n ) = @_;
+
+#print "Inspecting: ${e}E ${n}N\n";
 
 	my $ce = POSIX::floor( $e/$self->{cellsize} )*$self->{cellsize};
 	my $cn = POSIX::floor( $n/$self->{cellsize} )*$self->{cellsize};
 
-	my $SW = $self->cell_elevation( $ce, $cn );
-	my $NW = $self->cell_elevation( $ce, $cn+$self->{cellsize} );
-	my $NE = $self->cell_elevation( $ce+$self->{cellsize}, $cn+$self->{cellsize} );
-	my $SE = $self->cell_elevation( $ce+$self->{cellsize}, $cn );
+	my $SW = $self->cell_elevation( $model, $ce, $cn );
+	my $NW = $self->cell_elevation( $model, $ce, $cn+$self->{cellsize} );
+	my $NE = $self->cell_elevation( $model, $ce+$self->{cellsize}, $cn+$self->{cellsize} );
+	my $SE = $self->cell_elevation( $model, $ce+$self->{cellsize}, $cn );
 	if( !defined $SW || !defined $NW || !defined $SE || !defined $NE )
 	{
-print "no data $ce, $cn\n";
+		# print "no data $ce, $cn\n";
 		return 0;
 	}	
 
@@ -103,41 +161,70 @@ print "no data $ce, $cn\n";
 
 sub cell_elevation
 {
-	my( $self, $cell_e, $cell_n ) = @_;
+	my( $self, $model, $cell_e, $cell_n ) = @_;
 
-	if( defined $self->{cells}->{$cell_n}->{$cell_e} )
+	if( defined $self->{cells}->{$model}->{$cell_n}->{$cell_e} )
 	{
-		return $self->{cells}->{$cell_n}->{$cell_e};
+		return $self->{cells}->{$model}->{$cell_n}->{$cell_e};
 	}
 	my $file_e = POSIX::floor( $cell_e / $self->{filesize_e} )*$self->{filesize_e};
 	my $file_n = POSIX::floor( $cell_n / $self->{filesize_n} )*$self->{filesize_n};
 
-	my $fn = $self->{files}->{ $file_n }->{ $file_e };
+	my $fn = $self->{files}->{$model}->{ $file_n }->{ $file_e };
 	
 	if( !defined $fn ) 
-	{ 
+	{
+		# attempt to download lidar
 		print "no elevation for $file_e,$file_n\n"; 
+		$self->download( $file_e, $file_n );
+		$fn = $self->{files}->{$model}->{ $file_n }->{ $file_e };
+		if( !defined $fn ) 
+		{
+			# give up 
+			return;
+		}
+	}
+	if( $self->{loaded}->{$fn} )
+	{
+		# don't try to load the same file twice
 		return undef;
 	}
+	print "LOADING LIDAR: $fn\n";
 	
 	open( my $hfh, "<", $fn ) || die "can't read $fn";
 	my @lines = <$hfh>;
 	close $hfh;
+	my $lidar = {};
+        for( my $i=0; $i<6; ++$i )
+        {
+                my $line = $lines[$i];
+                $line =~ s/[\n\r]//g;
+                if( $line =~ m/^([^\s]+)\s+(.*)$/ )
+                {
+                        $lidar->{uc $1} = $2;
+                }
+                else
+                {
+                        die "Bad line in .asc file: $line";
+                }
+        }
 
 	for( my $i=6; $i<scalar(@lines); ++$i )
 	{
 		my $line = $lines[$i];
 		$line =~ s/\n//g;
 		$line =~ s/\r//g;
+		$line =~ s/\s*$//g;
+		$line =~ s/^\s*//g;
 		my @row = split( / /, $line );
-		for( my $j=0; $j<scalar(@row); $j++ )
+		CELL: for( my $j=0; $j<scalar(@row); $j++ )
 		{
-			$self->{cells}->{ $file_n + (499-($i-6))*$self->{cellsize} }->{ $file_e + $j*$self->{cellsize} } = $row[$j];
-
+			$self->{cells}->{$model}->{ $file_n + ($lidar->{NROWS}-1-($i-6))*$self->{cellsize} }->{ $file_e + $j*$self->{cellsize} } = $row[$j];
 		}
 	}
+	$self->{loaded}->{$fn} = 1;
 
-	return $self->{cells}->{$cell_n}->{$cell_e};
+	return $self->{cells}->{$model}->{$cell_n}->{$cell_e};
 }
 
 
