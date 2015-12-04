@@ -181,6 +181,7 @@ sub render
 				"3"=>[ 18, 0 ], #dirt
 				"2"=>[ 18, 0 ], #grass
 				"45"=>[ 45, 0 ], #brick
+				"98"=>[ 98, 0 ], #brick
 				"8"=>[ 1, 10 ], # water
 				"9"=>[ 1, 10 ], # water
 			};
@@ -188,7 +189,8 @@ sub render
 				$up_block = $fmap->{$block}->[0];
 				$min = $fmap->{$block}->[1];
 			}
-			if( $up_block eq "45" && $feature_height < 3 ) { $feature_height=3; }
+			if( $up_block eq "45" && $feature_height < 3 ) { $feature_height=3; } # buildings min height 3
+			if( $up_block eq "98" && $feature_height < 3 ) { $feature_height=5; } # churches min height 5
 			if( $feature_height >= $min )
 			{
 				for( my $up=1; $up<= $feature_height; ++$up )

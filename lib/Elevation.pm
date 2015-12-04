@@ -6,12 +6,13 @@ use Geo::Coordinates::OSTN02;
 use POSIX;
 use Data::Dumper;
 use JSON::PP;
+use Archive::Zip qw/ :ERROR_CODES /;
 use strict;
 use warnings;
 
 sub new 
 {
-	my( $class, $height_dir, $cat_dir, $tmp_dir, $correction ) = @_;
+	my( $class, $height_dir, $tmp_dir, $correction ) = @_;
 
 	if( !defined $correction ) { $correction = [0,0]; }
 	my $self = bless { 
@@ -19,7 +20,6 @@ sub new
 		loaded => {}, 
 		cells => {}, 
 		height_dir => $height_dir,
-		cat_dir => $cat_dir,
 		tmp_dir => $tmp_dir,
 		correction => $correction }, $class;
 
@@ -31,6 +31,7 @@ sub new
 
 	foreach my $model ( "DSM","DTM" ) 
 	{
+		print "Reading $model LIDAR metadata\n";
 		opendir( my $hdir, $height_dir."/$model" ) || die "Can't read elevation dir $height_dir";
 		while( my $file = readdir($hdir))
 		{
@@ -43,27 +44,40 @@ sub new
 	return $self;
 }
 
+sub get_url
+{
+	my( $self, $url ) = @_;
+
+	my $cmd = "curl '$url'";
+	print $cmd."\n";
+	my $data = `$cmd`;
+	return $data;
+}
+sub download_url
+{
+	my( $self, $url, $file ) = @_;
+
+	my $cmd = "curl '$url' > $file";
+	print $cmd."\n";
+	my $data = `$cmd`;
+	return $data;
+}
+
+
 sub download
 {
 	my( $self, $file_e, $file_n ) = @_;
 
 	print "($file_e)($file_n)\n";
-	my $filename = sprintf( 
-		"%s/%04d-%04d.json",
-		$self->{cat_dir},
+	my $url = sprintf( 
+		"https://raw.githubusercontent.com/cgutteridge/uklidar/master/catalog/%04d-%04d.json",
 		POSIX::floor( $file_e/10000 )*10,
 		POSIX::floor( $file_n/10000 )*10 );
-	if( $self->{loaded}->{$filename} )
+	if( $self->{loaded}->{$url} )
 	{
 		return; 
 	}
-
-	print $filename."\n";
-
-	local $/;
-	open( my $fh, "<", $filename ) || die "Can't read $filename";
-	my $json_text   = <$fh>;
-	close $fh;
+	my $json_text = $self->get_url( $url );
 	my $cat_record = decode_json( $json_text );
 
 	my $target = {};
@@ -73,10 +87,43 @@ sub download
 		$id =~ s/1$//;
 		$target->{$id} = $item->{url};
 	}
-	print Dumper( $target );
 
+	if( defined $target->{"https://data.gov.uk/dataset/lidar-composite-dsm-1m"} )
+	{
+		$self->add_zip( $target->{"https://data.gov.uk/dataset/lidar-composite-dsm-1m"}, "DSM" );
+	}
+	if( defined $target->{"https://data.gov.uk/dataset/lidar-composite-dtm-1m"} )
+	{
+		$self->add_zip( $target->{"https://data.gov.uk/dataset/lidar-composite-dtm-1m"}, "DTM" );
+	}
 
-	$self->{loaded}->{$filename} = 1;
+	$self->{loaded}->{$url} = 1;
+}
+
+sub add_zip
+{
+	my( $self, $url, $model ) = @_;
+
+	my $tmp_file = $self->{tmp_dir}."/lidar.$$.zip";
+
+	$self->download_url( $url, $tmp_file );
+
+	# Read a Zip file
+	my $zip = Archive::Zip->new();
+	unless ( $zip->read( $tmp_file ) == AZ_OK ) 
+	{
+		unlink( $tmp_file );
+		die 'read error: '.$tmp_file;
+	}
+
+	foreach my $member ( $zip->members )
+	{
+		my $file = $self->{height_dir}."/$model/".$member->fileName;
+		print "Adding: $file\n";
+		$member->extractToFileNamed( $file );
+		$self->add_file( $file, $model );
+	}
+	unlink( $tmp_file );
 }
 
 sub add_file

@@ -47,7 +47,7 @@ $OPTS->{EXTEND_DOWNWARDS} = 9;
 
 # $OPTS->{DTM} = new Elevation( "/Users/cjg/Projects/LIDAR-DSM-1M-SU41/DTM" );
 # $OPTS->{DSM} = new Elevation( "/Users/cjg/Projects/LIDAR-DSM-1M-SU41/DSM" );
-$OPTS->{ELEVATION} = new Elevation( "$FindBin::Bin/lidar", "$FindBin::Bin/uklidar/catalog", "/tmp" );
+$OPTS->{ELEVATION} = new Elevation( "$FindBin::Bin/lidar", "/tmp" );
 
 my $p = Minecraft::Projection->new( $world, 0,0, $e,$n, "OSGB36" );
 
