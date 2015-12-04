@@ -59,7 +59,7 @@ if( !defined $worldname )
 
 if( defined $postcode ) 
 {
-	$postcode = uc $ARGV[0];
+	$postcode = uc $postcode;
 	$postcode =~ s/\s//g;
 
 	my( $e, $n ) = postcode_to_en($postcode);
@@ -141,14 +141,16 @@ else
 	
 ############################### ###############################
 
-if( !-d "$FindBin::Bin/var" ) { mkdir( "$FindBin::Bin/var" );
-if( !-d "$FindBin::Bin/var/tiles" ) { mkdir( "$FindBin::Bin/var/tiles" );
-if( !-d "$FindBin::Bin/var/tmp" ) { mkdir( "$FindBin::Bin/var/tmp" );
-if( !-d "$FindBin::Bin/var/lidar" ) { mkdir( "$FindBin::Bin/var/lidar" );
-if( !-d "$FindBin::Bin/var/lidar/DSM" ) { mkdir( "$FindBin::Bin/var/lidar/DSM" );
-if( !-d "$FindBin::Bin/var/lidar/DTM" ) { mkdir( "$FindBin::Bin/var/lidar/DTM" );
+if( !-d "$FindBin::Bin/var" ) { mkdir( "$FindBin::Bin/var" ); }
+if( !-d "$FindBin::Bin/var/tiles" ) { mkdir( "$FindBin::Bin/var/tiles" ); }
+if( !-d "$FindBin::Bin/var/tmp" ) { mkdir( "$FindBin::Bin/var/tmp" ); }
+if( !-d "$FindBin::Bin/var/lidar" ) { mkdir( "$FindBin::Bin/var/lidar" ); }
+if( !-d "$FindBin::Bin/var/lidar/DSM" ) { mkdir( "$FindBin::Bin/var/lidar/DSM" ); }
+if( !-d "$FindBin::Bin/var/lidar/DTM" ) { mkdir( "$FindBin::Bin/var/lidar/DTM" ); }
 
 ############################### ###############################
+
+print "University of Southampton Open Data Minecraft Map Maker\n";
 
 if( -e "$FindBin::Bin/saves/$worldname" )
 {
@@ -195,6 +197,7 @@ sub postcode_to_en
 	my( $postcode ) = @_;
 
 	my $url = "http://data.ordnancesurvey.co.uk/doc/postcodeunit/$postcode.json";
+	print "Getting postcode: $url\n";
 	my $json = `curl -s $url`;
 	my $data = decode_json $json;
 	my $pdata = $data->{"http://data.ordnancesurvey.co.uk/id/postcodeunit/$postcode"};
