@@ -156,12 +156,22 @@ sub add_file
 	$self->{files}->{$model}->{$metadata->{yllcorner}}->{$metadata->{xllcorner}} = $filename;
 }
 
+# STATIC
+sub ll_to_en
+{
+	my( $lat, $long ) = @_;
+
+	my ($x, $y) = Geo::Coordinates::OSGB::ll_to_grid($lat, $long, 'ETRS89'); # or 'WGS84'
+	return Geo::Coordinates::OSTN02::ETRS89_to_OSGB36($x, $y );
+}
+
+
 sub ll
 {
 	my( $self, $model, $lat, $long ) = @_;
 
-	my ($x, $y) = Geo::Coordinates::OSGB::ll_to_grid($lat, $long, 'ETRS89'); # or 'WGS84'
-	my ($e, $n) = Geo::Coordinates::OSTN02::ETRS89_to_OSGB36($x, $y );
+	my( $e, $n ) = ll_to_en( $lat, $long );
+
 	return $self->en( $model, $e,$n );
 }
 

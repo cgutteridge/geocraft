@@ -86,17 +86,22 @@ sub render
 {
 	my( $self, %opts ) = @_;
 
-	# MC_BL = [x,z]	 (NW)
-	# MC_TR = [x,z]	 (SE)
-	#my( $mc_ref_x,$mc_ref_z,  $e_ref,$n_ref,  $mc_x1,$mc_z1,  $mc_x2,$mc_z2 ) = @_;
+	die "missing coords EAST1"  if( !defined $opts{EAST1} );
+	die "missing coords EAST2"  if( !defined $opts{EAST2} );
+	die "missing coords NORTH1" if( !defined $opts{NORTH1} );
+	die "missing coords NORTH2" if( !defined $opts{NORTH2} );
 
-	die "x2<=x1" if $opts{MC_TR}->[0]<=$opts{MC_BL}->[0];
-	die "z2<=z1" if $opts{MC_TR}->[1]<=$opts{MC_BL}->[1];
+	my( $WEST, $EAST )  = ( $opts{EAST1}, $opts{EAST2} );
+	my( $SOUTH,$NORTH ) = ( $opts{NORTH1},$opts{NORTH2} );
+
+	if( $EAST < $WEST ) { ( $EAST,$WEST ) = ( $WEST,$EAST ); }
+	if( $NORTH < $SOUTH ) { ( $NORTH,$SOUTH ) = ( $SOUTH,$NORTH ); }
+
 	my $block_count = 0;
-	for( my $z=$opts{MC_BL}->[1]; $z<=$opts{MC_TR}->[1]; ++$z ) 
+	for( my $z=$SOUTH; $z<=$NORTH; ++$z ) 
 	{
-		print STDERR $opts{MC_BL}->[0]."..".$opts{MC_TR}->[0].",".$z."\n";
-		for( my $x=$opts{MC_BL}->[0]; $x<=$opts{MC_TR}->[0]; ++$x ) 
+		print STDERR $WEST."..".$EAST.",".$z."\n";
+		for( my $x=$WEST; $x<=$EAST; ++$x )
 		{
 #print "LOOP($x,$z)\n";
 			my $e = $self->{offset_e} + $x;
