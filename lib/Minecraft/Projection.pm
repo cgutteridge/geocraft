@@ -97,28 +97,41 @@ sub render
 	if( $EAST < $WEST ) { ( $EAST,$WEST ) = ( $WEST,$EAST ); }
 	if( $NORTH < $SOUTH ) { ( $NORTH,$SOUTH ) = ( $SOUTH,$NORTH ); }
 
+	my $SEALEVEL = 2;
+	if( $opts{EXTEND_DOWNWARDS} )
+	{	
+		$SEALEVEL+=$opts{EXTEND_DOWNWARDS};
+	}
+
+	my $BCONFIG = {};
+	foreach my $id ( keys %{$opts{BLOCKS}} )
+	{
+		my %default = %{$opts{BLOCKS}->{DEFAULT}};
+		$BCONFIG->{$id} = \%default;
+		bless $BCONFIG->{$id}, "Minecraft::Projection::BlockConfig";
+		foreach my $field ( keys %{$opts{BLOCKS}->{$id}} )
+		{
+			$BCONFIG->{$id}->{$field} = $opts{BLOCKS}->{$id}->{$field};
+		}	
+	}
+
 	my $block_count = 0;
 	for( my $z=$SOUTH; $z<=$NORTH; ++$z ) 
 	{
 		print STDERR $WEST."..".$EAST.",".$z."\n";
 		for( my $x=$WEST; $x<=$EAST; ++$x )
 		{
-#print "LOOP($x,$z)\n";
 			my $e = $self->{offset_e} + $x;
 			my $n = $self->{offset_n} - $z;
 			my($lat,$long) = grid_to_ll( $e, $n, $self->{grid} );
 
-			my $y = 2;
 			my $el = 0;
 			my $feature_height = 0;
-			my $el2;
-			my $dsm;
-			my $dtm;
 		
 			if( $opts{ELEVATION} )
 			{	
-				$dsm = $opts{ELEVATION}->ll( "DSM", $lat, $long );
-				$dtm = $opts{ELEVATION}->ll( "DTM", $lat, $long );
+				my $dsm = $opts{ELEVATION}->ll( "DSM", $lat, $long );
+				my $dtm = $opts{ELEVATION}->ll( "DTM", $lat, $long );
 				$el = $dtm;
 				$el = $dsm if( !defined $el );
 				if( defined $dsm && defined $dtm )
@@ -127,22 +140,7 @@ sub render
 				}
 			}
 			
-			$y = $el+2;
-		
-			if( defined $opts{EXTEND_DOWNWARDS} )
-			{
-				$y += $opts{EXTEND_DOWNWARDS};
-			}
-
-			if( defined $opts{FLOOD} && $opts{FLOOD}>$el )
-			{
-				for( my $yi = $y+$opts{FLOOD}-$el; $yi>$y; $yi-- )
-				{
-					$self->{world}->set_block( $x, $yi, $z, 9 );
-				}
-			}
-
-			my $block = 1;
+			my $block = 1; # default to stone
 			if( defined $opts{MAPTILES} )
 			{
 				$block = $opts{MAPTILES}->block_at( $lat,$long );
@@ -151,70 +149,117 @@ sub render
 			{
 				$block = $opts{BLOCK};
 			}
-			
-			$self->{world}->set_block( $x, $y, $z, $block );
-			if( defined $opts{EXTRUDE}->{$block} )
-			{
-				for( my $i=0; $i<@{$opts{EXTRUDE}->{$block}}; $i++ )
-				{
-					$self->{world}->set_block( $x, $y+1+$i, $z, $opts{EXTRUDE}->{$block}->[$i] );
-				}
-			}
-			my $bottom=$y;
+
+			# we now have $block, $el, $SEALEVEL and $feature_height
+			# that's enough to work out what to place at this location
+
+			# config options based on value of block
+
+			my $bc = $BCONFIG->{$block};
+			$bc = $BCONFIG->{DEFAULT} if !defined $bc;
+
+			my $context = {
+				elevation => $el,
+				feature_height => $feature_height,
+				easting => $e,
+				northing => $n,
+				x => $x,
+				z => $z,
+			};
+
+			# block : blocktype [ block ID or "DEFAULT" ]
+			# down_block: blocktype [ block ID or "DEFAULT" ]
+			# up_block: blocktype [ block ID or "DEFAULT" ]
+			# bottom_block: blocktype [ block ID or "DEFAULT" ]
+			# under_block: blocktype [ block ID or "DEFAULT" ]
+			# top_block: blocktype [ block ID or "DEFAULT" ]
+			# over_block: blocktype [ block ID or "DEFAULT" ]
+			# feature_filter - filter features of this height or less
+			# feature_min_height - force this min feature height even if lidar is lower
+
+			my $blocks = {};
+			$blocks->{0} = $bc->val( $context, "block", $block );
+
+			my $bottom=0;
 			if( defined $opts{EXTEND_DOWNWARDS} )
 			{
-				for( my $i=0; $i<$opts{EXTEND_DOWNWARDS}; $i++ )
+				for( my $i=0; $i<=$opts{EXTEND_DOWNWARDS}; $i++ )
 				{
-					$self->{world}->set_block( $x, $y-1-$i, $z, $block );
+					$blocks->{-$i} = $bc->val( $context, "down_block", $block );
 				}
 				$bottom-=$opts{EXTEND_DOWNWARDS};
 			}
-			# put a dirt block under water and lava and other
-			# blocks which need support
-			if( $block==9 || $block==12 || $block==12.1 || $block==13 || $block==11 ) 
+
+			my $top = 0;
+			my $fmh = $bc->val( $context, "feature_min_height" );
+			if( defined $fmh && $fmh>$feature_height )
 			{
-				$self->{world}->set_block( $x, $bottom-1, $z, 3 );
-			}
-
-			# now look at difference between DTM and DSM
-
-			my $up_block = $block;
-			$up_block = "35.7";
-			my $min = 3;
-			my $fmap = {
-				"3.1"=>[ 18, 0 ], #dirt
-				"3"=>[ 18, 0 ], #dirt
-				"2"=>[ 18, 0 ], #grass
-				"45"=>[ 45, 0 ], #brick
-				"98"=>[ 98, 0 ], #brick
-				"8"=>[ 1, 10 ], # water
-				"9"=>[ 1, 10 ], # water
-			};
-			if( $fmap->{$block} ) { 
-				$up_block = $fmap->{$block}->[0];
-				$min = $fmap->{$block}->[1];
-			}
-			if( $up_block eq "45" && $feature_height < 3 ) { $feature_height=3; } # buildings min height 3
-			if( $up_block eq "98" && $feature_height < 3 ) { $feature_height=5; } # churches min height 5
-			if( $feature_height >= $min )
+				$feature_height = $fmh;
+			}	
+			my $ff = $bc->val( $context, "feature_filter" );
+			if( !defined $ff || $feature_height > $ff )
 			{
-				for( my $up=1; $up<= $feature_height; ++$up )
+				for( my $i=1; $i<= $feature_height; ++$i )
 				{
-					$self->{world}->set_block( $x, $y+$up, $z, $up_block );
+					$blocks->{$i} = $bc->val( $context, "up_block", $block );
 				}
-				# top-off brick things in dark grey
-				#$self->{world}->set_block( $x, $y+$feature_height, $z, "3" );
-				if( $up_block eq "45" )
-				{
-					$self->{world}->set_block( $x, $y+$feature_height+1, $z, "171.8" );
-				}
+				$top+=$feature_height;
 			}
 
+			my $v;
+			$v = $bc->val( $context,"bottom_block"); 
+			if( defined $v ) { $blocks->{$bottom} = $v; }
+			$v = $bc->val( $context,"under_block"); 
+			if( defined $v ) { $blocks->{$bottom-1} = $v; }
+			$v = $bc->val( $context,"top_block"); 
+			if( defined $v ) { $blocks->{$top} = $v; }
+			$v = $bc->val( $context,"over_block"); 
+			if( defined $v ) { $blocks->{$top+1} = $v; }
+
+			if( $opts{FLOOD} )
+			{
+				for( my $i=1; $i<=$opts{FLOOD}; $i++ )
+				{
+					my $block_el = $el+$i;
+					if( $el+$i <= $opts{FLOOD} && (!defined $blocks->{$i} || $blocks->{$i}==0 ))
+					{
+						$blocks->{$i} = 9; # water, obvs.
+					}
+				}	
+			}
+#print Dumper( $bc, $blocks );
+#print "...\n";
+			foreach my $offset ( sort keys %$blocks )
+			{
+				my $y = $SEALEVEL+$offset;
+				$y+=$el if( !$opts{FLATLAND} );
+				next if( $y>$opts{TOP_OF_WORLD} );
+				$self->{world}->set_block( $x, $y, $z, $blocks->{$offset} );
+			}
+	
 			$block_count++;
 			if( $block_count % (256*256) == 0 ) { $self->{world}->save(); }
 		}
 	}			
 	$self->{world}->save(); 
 }
+
+package Minecraft::Projection::BlockConfig;
+use strict;
+use warnings;
+
+sub val
+{
+	my( $self, $context, $term, $default ) = @_;
+
+	my $v = $self->{$term};
+	$v=$default if( !defined $v );
+	return unless defined $v;
+
+	# subroutines
+
+	return $v;
+}
+
 
 1;

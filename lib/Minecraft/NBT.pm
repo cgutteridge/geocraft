@@ -1,4 +1,5 @@
 package Minecraft::NBT;
+use IO::Uncompress::Gunzip qw(gunzip $GunzipError) ;
 use strict;
 use warnings;
 
@@ -13,6 +14,20 @@ sub from_file
   	close $fh;
 
 	return $class->from_string( $data );
+}
+sub from_gzip_file
+{
+	my( $class, $filename ) = @_;
+
+	local $/ = undef;
+	open( my $fh, "<:bytes", $filename ) || die "failed to open $filename: $!";
+  	binmode $fh;
+  	my $data = <$fh>;
+  	close $fh;
+	my $nbt_string;	
+	gunzip \$data => \$nbt_string;
+
+	return $class->from_string( $nbt_string );
 }
 
 sub from_string
@@ -242,6 +257,7 @@ sub tag_int_array
 #######################################################################
 
 package Minecraft::NBT::Compound;
+use IO::Compress::Gzip qw(gzip $GzipError) ;
 use strict;
 use warnings;
 
@@ -253,6 +269,19 @@ sub to_file
 	open( my $fh, ">:bytes", $filename ) || die "failed to write $filename: $!";
   	binmode $fh;
 	syswrite( $fh, $out );
+  	close $fh;
+}
+sub to_gzip_file
+{
+	my( $self, $filename ) = @_;
+
+	my $out = $self->to_string();
+	my $zipped;
+	gzip \$out=>\$zipped;
+
+	open( my $fh, ">:bytes", $filename ) || die "failed to write $filename: $!";
+  	binmode $fh;
+	syswrite( $fh, $zipped );
   	close $fh;
 }
 
