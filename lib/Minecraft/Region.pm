@@ -70,8 +70,8 @@ sub add_section
 		my $section = bless( {}, "Minecraft::NBT::Compound"  );
 		$section->{Y} = bless { _name=>"Y", _value=>$section_y_i }, "Minecraft::NBT::Byte";
 		$section->{Blocks} = bless { _name=>"Blocks", _value=>chr(0)x4096 }, "Minecraft::NBT::ByteArray";
-		$section->{BlockLight} = bless { _name=>"BlockLight", _value=>chr(255)x2048 }, "Minecraft::NBT::ByteArray";
-		$section->{SkyLight} = bless { _name=>"SkyLight", _value=>chr(0)x2048 }, "Minecraft::NBT::ByteArray";
+		$section->{BlockLight} = bless { _name=>"BlockLight", _value=>chr(0)x2048 }, "Minecraft::NBT::ByteArray";
+		$section->{SkyLight} = bless { _name=>"SkyLight", _value=>chr(255)x2048 }, "Minecraft::NBT::ByteArray";
 		$section->{Data} = bless { _name=>"Data", _value=>chr(0)x2048 }, "Minecraft::NBT::ByteArray";
 		$sections->{_value}->[$section_y_i]= $section;
 	}
@@ -93,10 +93,10 @@ sub add_chunk
 	};
 
 	$level->{TerrainPopulated} = bless { _name=>"TerrainPopulated", _value=>1 }, 'Minecraft::NBT::Byte';
-	$level->{Biomes} = bless { _name=>"Biomes", _value=>chr(0)x2048 }, 'Minecraft::NBT::ByteArray';
+	$level->{Biomes} = bless { _name=>"Biomes", _value=>chr(0)x256 }, 'Minecraft::NBT::ByteArray';
 	$level->{xPos} = bless { _name=>"xPos", _value=>$c_x }, 'Minecraft::NBT::Int';
 	$level->{zPos} = bless { _name=>"zPos", _value=>$c_z }, 'Minecraft::NBT::Int';
-	$level->{LightPopulated} = bless { _name=>"LightPopulated", _value=>1 }, 'Minecraft::NBT::Byte';
+	$level->{LightPopulated} = bless { _name=>"LightPopulated", _value=>0 }, 'Minecraft::NBT::Byte';
 	$level->{Entities} = bless { _name=>"Entities", _value=>[], _type=>10 }, 'Minecraft::NBT::TagList';
 	$level->{TileEntities} = bless { _name=>"TileEntities", _value=>[], _type=>10 }, 'Minecraft::NBT::TagList';
 	$level->{LastUpdate} = bless { _name=>"LastUpdate", _value=>0 }, 'Minecraft::NBT::Long';
@@ -122,6 +122,16 @@ sub add_layer
 # Getters & Setters
 # Coordinates relative to *Region*
 
+sub biome_offset 
+{
+	my( $self, $rel_x, $rel_z ) = @_;
+
+	my $local_x = $rel_x&15;
+	my $local_z = $rel_z&15;
+
+	my $offset = 16*$local_z + $local_x;
+	return $offset;
+}
 sub block_offset 
 {
 	my( $self, $rel_x,$y,$rel_z) = @_;
@@ -181,6 +191,44 @@ sub set_block
 
 	$self->{_changed} = 1;
 }
+sub get_biome
+{
+	my( $self,   $rel_x,$rel_z ) = @_;
+
+	my( $chunk_x, $chunk_z ) = $self->chunk_xz($rel_x,$rel_z);
+
+	return undef if( !defined $self->{$chunk_z}->{$chunk_x}->{chunk} );
+	my $chunk = $self->{$chunk_z}->{$chunk_x}->{chunk};
+	my $level = $chunk->{Level};
+
+	my $offset = $self->biome_offset($rel_x,$rel_z);
+
+	return ord(substr( $level->{Biomes}->{_value}, $offset, 1 ));
+}
+
+sub set_biome
+{
+	my( $self,   $rel_x,$rel_z, $type ) = @_;
+
+	if( $type != ($type&255) ) { die "bad type passed to set_biome: $type"; }
+
+	my( $chunk_x, $chunk_z ) = $self->chunk_xz($rel_x,$rel_z);
+
+	if( !defined $self->{$chunk_z}->{$chunk_x}->{chunk} )
+	{
+		$self->add_chunk( $chunk_x, $chunk_z );
+	}
+	my $chunk = $self->{$chunk_z}->{$chunk_x}->{chunk};
+	my $level = $chunk->{Level};
+
+	my $offset = $self->biome_offset($rel_x,$rel_z);
+
+	substr( $level->{Biomes}->{_value}, $offset, 1 ) = chr($type);
+	
+	$self->{_changed} = 1;
+}
+
+
 
 
 

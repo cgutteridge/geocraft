@@ -52,11 +52,24 @@ sub set_block
 
 	return $self->block_region( $x,$y,$z )->set_block( c($x,$y,$z), $id );
 }
-
 sub block_region
 {
 	my( $self,   $x,$y,$z ) = @_;
 	return $self->region( POSIX::floor($x/512),POSIX::floor($z/512) );
+}
+
+sub get_biome
+{
+	my( $self,   $x,$z ) = @_;
+
+	return $self->block_region( $x,0,$z )->get_biome( c($x,0,$z) );
+}
+sub set_biome
+{
+	my( $self,   $x,$z, $id ) = @_;
+
+	my( $x1,$y1,$z1 ) = c($x,0,$z);
+	return $self->block_region( $x,0,$z )->set_biome( $x1,$z1, $id );
 }
 
 sub save

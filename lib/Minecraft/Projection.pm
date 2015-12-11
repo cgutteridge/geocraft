@@ -102,6 +102,10 @@ sub render
 	{	
 		$SEALEVEL+=$opts{EXTEND_DOWNWARDS};
 	}
+	if( $opts{YSHIFT} )
+	{	
+		$SEALEVEL+=$opts{YSHIFT};
+	}
 
 	my $BCONFIG = {};
 	foreach my $id ( keys %{$opts{BLOCKS}} )
@@ -157,6 +161,7 @@ sub render
 
 			my $bc = $BCONFIG->{$block};
 			$bc = $BCONFIG->{DEFAULT} if !defined $bc;
+			if( !defined $bc) { die "No DEFAULT block"; }
 
 			my $context = {
 				elevation => $el,
@@ -183,9 +188,9 @@ sub render
 			my $bottom=0;
 			if( defined $opts{EXTEND_DOWNWARDS} )
 			{
-				for( my $i=0; $i<=$opts{EXTEND_DOWNWARDS}; $i++ )
+				for( my $i=1; $i<=$opts{EXTEND_DOWNWARDS}; $i++ )
 				{
-					$blocks->{-$i} = $bc->val( $context, "down_block", $block );
+					$blocks->{-$i} = $bc->val( $context, "down_block", $blocks->{0} );
 				}
 				$bottom-=$opts{EXTEND_DOWNWARDS};
 			}
@@ -201,7 +206,7 @@ sub render
 			{
 				for( my $i=1; $i<= $feature_height; ++$i )
 				{
-					$blocks->{$i} = $bc->val( $context, "up_block", $block );
+					$blocks->{$i} = $bc->val( $context, "up_block", $blocks->{0} );
 				}
 				$top+=$feature_height;
 			}
@@ -236,6 +241,9 @@ sub render
 				next if( $y>$opts{TOP_OF_WORLD} );
 				$self->{world}->set_block( $x, $y, $z, $blocks->{$offset} );
 			}
+
+			my $biome = $bc->val( $context,"biome");
+			if( defined $biome ) { $self->{world}->set_biome( $x,$z, $biome ); }
 	
 			$block_count++;
 			if( $block_count % (256*256) == 0 ) { $self->{world}->save(); }
@@ -256,7 +264,10 @@ sub val
 	$v=$default if( !defined $v );
 	return unless defined $v;
 
-	# subroutines
+	if( ref($v) eq "CODE" )
+	{
+		$v = &$v( $context );
+	}
 
 	return $v;
 }

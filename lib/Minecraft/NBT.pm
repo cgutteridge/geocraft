@@ -297,21 +297,6 @@ sub to_string
 
 }
 
-sub hexdump 
-{
-	my( $data ) = @_;
-
-	for( my $i=0;$i<length($data);$i+=16 )
-	{
-		for( my $j=0;$j<16;++$j )
-		{
-			print sprintf( "%02X ", ord( substr( $data,$i+$j,1)));
-		}
-		print "\n";
-	}
-}
-
-
 # get basic values from stream
 sub put
 {

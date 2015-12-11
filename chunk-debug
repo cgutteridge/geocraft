@@ -1,0 +1,26 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+use FindBin;
+use lib "$FindBin::Bin/lib";
+use Minecraft;
+
+use Data::Dumper;
+
+if( @ARGV != 3 )
+{
+	print "$0 <world> <x> <z>\n";
+	exit 1;
+}
+my( $worldname, $x,$z ) = @ARGV;
+
+my $mc = new Minecraft( "$FindBin::Bin/saves" );
+my $world = $mc->world( $worldname );
+my $region = $world->block_region( $x,0,$z );
+my( $rel_x,$rel_y,$rel_z ) = Minecraft::World::c( $x,0,$z);
+my( $chunk_x, $chunk_z ) = $region->chunk_xz($rel_x,$rel_z);
+my $chunk = $region->{$chunk_z}->{$chunk_x}->{chunk};
+$chunk->debug;
+exit;
+
