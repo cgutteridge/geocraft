@@ -1,0 +1,24 @@
+Installing the imagemagick library on OSX is relatively easy but takes ages. The best way I've found so far to do it is:
+
+Install MacPorts: https://www.macports.org/
+
+Then in the Terminal window do:
+
+  sudo port install ImageMagick
+
+Sudo will ask for your password. This will take AGES as it installs a whole raft of libraries. Then do 
+
+  sudo port install p5-perlmagick
+
+This is pretty quick. Finally you'll need:
+  
+  sudo cpan Archive::Zip
+
+and that should give you everything you need to run generate_world
+
+You may find it helpful to do:
+
+  rmdir saves
+
+  ln -s /Users/cjg/Library/Application Support/minecraft/saves saves
+
