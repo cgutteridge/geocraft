@@ -20,5 +20,5 @@ You may find it helpful to do:
 
   rmdir saves
 
-  ln -s /Users/cjg/Library/Application Support/minecraft/saves saves
+  ln -s '/Users/cjg/Library/Application Support/minecraft/saves' saves
 
