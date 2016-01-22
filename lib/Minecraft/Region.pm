@@ -12,12 +12,13 @@ use POSIX;
 
 sub new
 {
-	my($class) = @_;
+	my($class,$opts) = @_;
 
-	my $self = bless {}, $class;
+	my $self = bless {opts=>$opts}, $class;
 
 	return $self;
 }
+
 
 sub chunk_xz
 {
@@ -102,6 +103,10 @@ sub add_chunk
 	$level->{LastUpdate} = bless { _name=>"LastUpdate", _value=>0 }, 'Minecraft::NBT::Long';
 	$level->{HeightMap} = bless { _name=>"HeightMap", _value=>[] }, 'Minecraft::NBT::IntArray';
 	$level->{Sections} = bless { _name=>"Sections", _value=>[], _type=>10 }, 'Minecraft::NBT::TagList';
+	if( defined $self->{opts}->{init_chunk} )
+	{
+		&{$self->{opts}->{init_chunk}}( $self, $c_x, $c_z );
+	}
 
 	$self->{_changed} = 1;
 }

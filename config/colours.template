@@ -16,12 +16,14 @@ $Minecraft::Config::COLOURS = {
 "80:99:94"=> 2, # grass playground?
 "81:92:65"=> 2, # grass
 "80:91:69"=> 2, # grass
+"70:89:70"=> 2, # grass/trees?
 "67:81:61"=> 2, # grass
 "53:71:55"=> 2, # graveyard
 "66:79:68"=> 2, # graveyard
 "80:92:69"=> 2, # grass
 "20:80:60"=> 2, # grass
 "53:82:68"=> 2, # grass -- tennis courts?
+"78:97:80"=> 2, # grass
 "78:98:80"=> 2, # grass
 "54:82:68"=> 2, # grass -- sports ground
 

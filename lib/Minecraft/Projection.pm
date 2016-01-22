@@ -3,6 +3,7 @@ package Minecraft::Projection;
 use Geo::Coordinates::OSGB;
 use Math::Trig;
 use Data::Dumper;
+use Minecraft::Context;
 use strict;
 use warnings;
 
@@ -82,6 +83,53 @@ sub new
 # more mc_x : more easting
 # more mc_y : less northing
 
+
+sub context 
+{
+	my( $self, $x, $z, %opts ) = @_;
+
+	my $e = $self->{offset_e} + $x;
+	my $n = $self->{offset_n} - $z;
+
+	my($lat,$long) = grid_to_ll( $e, $n, $self->{grid} );
+
+	my $el = 0;
+	my $feature_height = 0;
+
+	if( $opts{ELEVATION} )
+	{	
+		my $dsm = $opts{ELEVATION}->ll( "DSM", $lat, $long );
+		my $dtm = $opts{ELEVATION}->ll( "DTM", $lat, $long );
+		$el = $dtm;
+		$el = $dsm if( !defined $el );
+		if( defined $dsm && defined $dtm )
+		{
+			$feature_height = int($dsm-$dtm);
+		}
+	}
+	
+	my $block = 1; # default to stone
+	if( defined $opts{MAPTILES} )
+	{
+		$block = $opts{MAPTILES}->block_at( $lat,$long );
+	}
+	if( defined $opts{BLOCK} )
+	{
+		$block = $opts{BLOCK};
+	}
+	return bless {
+		block => $block,
+		elevation => $el,
+		feature_height => $feature_height,
+		easting => $e,
+		northing => $n,
+		lat => $lat,
+		long => $long,
+		x => $x,
+		z => $z,
+	}, "Minecraft::Context";
+}
+
 sub render
 {
 	my( $self, %opts ) = @_;
@@ -125,35 +173,11 @@ sub render
 		print STDERR $WEST."..".$EAST.",".$z."\n";
 		for( my $x=$WEST; $x<=$EAST; ++$x )
 		{
-			my $e = $self->{offset_e} + $x;
-			my $n = $self->{offset_n} - $z;
-			my($lat,$long) = grid_to_ll( $e, $n, $self->{grid} );
-
-			my $el = 0;
-			my $feature_height = 0;
+			my $context = $self->context( $x, $z, %opts );
+			my $block = $context->{block};
+			my $el = $context->{elevation};
+			my $feature_height = $context->{feature_height};
 		
-			if( $opts{ELEVATION} )
-			{	
-				my $dsm = $opts{ELEVATION}->ll( "DSM", $lat, $long );
-				my $dtm = $opts{ELEVATION}->ll( "DTM", $lat, $long );
-				$el = $dtm;
-				$el = $dsm if( !defined $el );
-				if( defined $dsm && defined $dtm )
-				{
-					$feature_height = int($dsm-$dtm);
-				}
-			}
-			
-			my $block = 1; # default to stone
-			if( defined $opts{MAPTILES} )
-			{
-				$block = $opts{MAPTILES}->block_at( $lat,$long );
-			}
-			if( defined $opts{BLOCK} )
-			{
-				$block = $opts{BLOCK};
-			}
-
 			# we now have $block, $el, $SEALEVEL and $feature_height
 			# that's enough to work out what to place at this location
 
@@ -163,14 +187,18 @@ sub render
 			$bc = $BCONFIG->{DEFAULT} if !defined $bc;
 			if( !defined $bc) { die "No DEFAULT block"; }
 
-			my $context = {
-				elevation => $el,
-				feature_height => $feature_height,
-				easting => $e,
-				northing => $n,
-				x => $x,
-				z => $z,
-			};
+			if( $bc->{look_around} ) {
+				my $dirmap = {
+					north=>{ x=>0, z=>-1 },
+					south=>{ x=>0, z=>1 },
+					west=>{ x=>-1, z=>0 },
+					east=>{ x=>1, z=>0 },
+				};
+				foreach my $dir ( qw/ north south east west / ) { 
+					$context->{$dir} = $self->context( $x+$dirmap->{$dir}->{x}, $z+$dirmap->{$dir}->{z}, %opts );
+				}
+			}
+
 
 			# block : blocktype [ block ID or "DEFAULT" ]
 			# down_block: blocktype [ block ID or "DEFAULT" ]
@@ -206,18 +234,27 @@ sub render
 			{
 				for( my $i=1; $i<= $feature_height; ++$i )
 				{
+					$context->{y_offset} = $i;
 					$blocks->{$i} = $bc->val( $context, "up_block", $blocks->{0} );
 				}
 				$top+=$feature_height;
 			}
 
 			my $v;
+
+			$context->{y_offset} = $bottom;
 			$v = $bc->val( $context,"bottom_block"); 
 			if( defined $v ) { $blocks->{$bottom} = $v; }
+
+			$context->{y_offset} = $bottom-1;
 			$v = $bc->val( $context,"under_block"); 
 			if( defined $v ) { $blocks->{$bottom-1} = $v; }
+
+			$context->{y_offset} = $top;
 			$v = $bc->val( $context,"top_block"); 
 			if( defined $v ) { $blocks->{$top} = $v; }
+
+			$context->{y_offset} = $top+1;
 			$v = $bc->val( $context,"over_block"); 
 			if( defined $v ) { $blocks->{$top+1} = $v; }
 
@@ -225,6 +262,7 @@ sub render
 			{
 				for( my $i=1; $i<=$opts{FLOOD}; $i++ )
 				{
+					$context->{y_offset} = $i; # not currently used
 					my $block_el = $el+$i;
 					if( $el+$i <= $opts{FLOOD} && (!defined $blocks->{$i} || $blocks->{$i}==0 ))
 					{

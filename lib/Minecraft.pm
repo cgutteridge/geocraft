@@ -23,9 +23,9 @@ sub new
 
 sub world
 {
-	my( $self, $world_name ) = @_;
+	my( $self, $world_name, %opts ) = @_;
 
-	return Minecraft::World->new( $self->{dir}."/$world_name" );
+	return Minecraft::World->new( $self->{dir}."/$world_name", \%opts );
 }
 
 1;

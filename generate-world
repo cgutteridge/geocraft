@@ -39,6 +39,7 @@ BEGIN {
 	{
 		print "$0 [--saves <mc-saves-dir>] [--ll] --from <x>,<y> --to <x>,<y> <world-name>\n";
 		print "$0 [--saves <mc-saves-dir>] [--ll] [--centre <x>,<y> | --postcode <code> ] --size <n>|<w>,<h> <world-name>\n";
+		print "Additional options: --replace --yshift <n> --blocks <file> --colours <file>\n";
 	}
 
 	if( !GetOptions (
@@ -226,7 +227,15 @@ $nbt->to_gzip_file( "$FindBin::Bin/saves/$worldname/level.dat" );
 
 
 my $mc = new Minecraft( "$FindBin::Bin/saves" );
-my $world = $mc->world( $worldname );
+my $world = $mc->world( $worldname, init_chunk=>sub {
+	my( $region, $cx,$cz ) = @_;
+	for( my $off_z=0;$off_z<16;$off_z++ ) {
+		for( my $off_x=0;$off_x<16;$off_x++ ) {
+			$region->set_block( $cx*16+$off_x, 0, $cz*16+$off_z, 7 ); #bedrock
+			$region->set_block( $cx*16+$off_x, 1, $cz*16+$off_z, 20 ); #glass?!
+		}
+	}
+});
 
 
 $OPTS->{MAPTILES} = new Minecraft::MapTiles(

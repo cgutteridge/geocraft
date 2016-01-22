@@ -11,7 +11,7 @@ use warnings;
 
 sub new
 {
-	my( $class, $dir ) = @_;
+	my( $class, $dir, $opts ) = @_;
 
 	if( !-d $dir )
 	{
@@ -23,6 +23,8 @@ sub new
 	$self->read_level;
 
 	$self->{regions} = {};
+
+	$self->{opts} = $opts;
 
 	return $self;
 }
@@ -158,10 +160,12 @@ sub init_region
 	my( $self, $r_x, $r_z ) = @_;
 
 	print "INIT REGION $r_x,$r_z .. ";
-	$self->{regions}->{$r_z}->{$r_x} = new Minecraft::Region();	
+	$self->{regions}->{$r_z}->{$r_x} = new Minecraft::Region($self->{opts});	
+	if( defined $self->{opts}->{init_region} )
+	{
+		&{$self->{opts}->{init_region}}( $self->{regions}->{$r_z}->{$r_x}, $r_x, $r_z );
+	}
 	$self->{regions}->{$r_z}->{$r_x}->{_changed} = 1;
-return;
-	$self->{regions}->{$r_z}->{$r_x}->add_layer( 0, 7 ); # add bedrock
 	print "done\n";
 }
 
