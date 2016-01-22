@@ -195,6 +195,7 @@ else
 	
 ############################### ###############################
 
+if( !-d "$FindBin::Bin/saves" ) { mkdir( "$FindBin::Bin/saves" ); }
 if( !-d "$FindBin::Bin/var" ) { mkdir( "$FindBin::Bin/var" ); }
 if( !-d "$FindBin::Bin/var/tiles" ) { mkdir( "$FindBin::Bin/var/tiles" ); }
 if( !-d "$FindBin::Bin/var/tmp" ) { mkdir( "$FindBin::Bin/var/tmp" ); }

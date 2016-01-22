@@ -1,0 +1,26 @@
+
+Hi, this software is provided under the GPLv3. Please feel free to alter and share it.
+
+This version was written by Christopher Gutteridge at the University of Southampton.
+(c) 2015 Christopher Gutteridge
+
+You'll need to get the Archive::Zip and Image::Magick perl modules installed. Then you can run the software from a command line using:
+
+./generate-world --postcode SO171BJ --size 1000 Highfield
+
+This usage would create a world file in the /saves/ subdirectory called Highfield centred on the Universty of Southampton and 1000 blocks (1km) square. You may find it handy to symlink the /saves/ directory to your minecraft saves location.
+
+Internet access is essential at all times as this will be downloading lots of data.
+
+LIDAR data (c) Defra under the Open Government License.
+Map data (c) Open Streetmap Contributors under Creative Commons Attribution ShareAlike License.
+
+Github: https://github.com/cgutteridge/geocraft
+Facebook: https://www.facebook.com/magic.minecraft.map.maker/
+
+Author contact info:
+Email: cjg@ecs.soton.ac.uk
+Twitter: cgutteridge
+
+
+

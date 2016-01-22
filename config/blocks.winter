@@ -2,7 +2,7 @@
 $Minecraft::Config::BLOCKS = {
 
 	DEFAULT=> {
-		biome => 12,
+		biome => 12, # ice plains
 		# block undef by default
 		# down_block undef by default
 		up_block=>35.07, # dark grey wool

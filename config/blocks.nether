@@ -3,7 +3,7 @@
 $Minecraft::Config::BLOCKS = {
 
 	DEFAULT=> {
-		biome => 8,
+		biome => 8, # hell!
 		# block undef by default
 		# down_block undef by default
 		block => 87, # netherrack
