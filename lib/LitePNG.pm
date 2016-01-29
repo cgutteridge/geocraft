@@ -102,7 +102,6 @@ sub add_chunk
 		}
 		return;
 	}
-	print "$type\n";
 }
 
 1;
