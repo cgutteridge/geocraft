@@ -67,7 +67,6 @@ sub add_chunk
 		$self->{filter} = ord( substr( $chunk, 11, 1 ) );
 		$self->{interlace} = ord( substr( $chunk, 12, 1 ) );
 
-		print Dumper( $self );
 		if( $self->{color_type} !=3 ) { die "Color type ".$self->{color_type}." not supported"; }
 		if( $self->{bit_depth} !=8 ) { die "Bit depth ".$self->{bit_depth}." not supported"; }
 		if( $self->{compression} !=0 ) { die "Compression ".$self->{compression}." not supported"; }
@@ -92,9 +91,7 @@ sub add_chunk
 
 	if( $type eq "IDAT" )
 	{
-		print length($chunk)."\n";
 		my $idat = uncompress( $chunk );
-		print length($idat)."\n";
 		my $offset = 0;
 		for(my $y=0;$y<$self->{height};++$y) {
 			$offset++; # filter type byte
@@ -107,3 +104,5 @@ sub add_chunk
 	}
 	print "$type\n";
 }
+
+1;
