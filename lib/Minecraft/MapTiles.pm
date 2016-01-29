@@ -1,6 +1,7 @@
 package Minecraft::MapTiles;
 
-use Image::Magick;
+use LitePNG;
+use Data::Dumper;
 use Math::Trig;
 use strict;
 use warnings;
@@ -11,6 +12,8 @@ sub new
 
 	my $self = bless { %opts },$class;
 	$self->{tiles} = {};	
+
+	
 
 	return $self;
 }
@@ -43,8 +46,7 @@ sub tile
 			#print "$cmd\n";
 			`$cmd`;
 		}
-		$self->{tiles}->{$fn} = new Image::Magick;
-		$self->{tiles}->{$fn}->Read( $self->{dir}."/$fn" );
+		$self->{tiles}->{$fn} = new LitePNG( $self->{dir}."/$fn" );
 	}
 	return $self->{tiles}->{$fn};
 }
@@ -55,9 +57,23 @@ sub col_on_tile
 {
 	my( $self, $tile, $p_x,$p_y ) = @_;
 
-	my @pixel = $tile->GetPixel(x=>$p_x,y=>$p_y);
+	my @pixel = @{$tile->{pixel}->{$p_y}->{$p_x}};
 	return undef if( !defined $pixel[0] );
-	return int( $pixel[0]*100 ).":".int( $pixel[1]*100 ).":".int($pixel[2]*100);
+
+	return join( ":",
+		byteToPercent( $pixel[0] ),
+		byteToPercent( $pixel[1] ),
+		byteToPercent( $pixel[2] ) );
+}
+
+sub byteToPercent
+{
+	my( $v ) = @_;
+
+	my $p = $v/256*100;
+	my $f = int($p);
+	if( $p>=$f+0.5 ) { return $f+1; }
+	return $f;
 }
 
 sub spread_colours

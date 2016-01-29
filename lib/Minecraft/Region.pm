@@ -95,13 +95,14 @@ sub add_chunk
 
 	$level->{TerrainPopulated} = bless { _name=>"TerrainPopulated", _value=>1 }, 'Minecraft::NBT::Byte';
 	$level->{Biomes} = bless { _name=>"Biomes", _value=>chr(0)x256 }, 'Minecraft::NBT::ByteArray';
-	$level->{xPos} = bless { _name=>"xPos", _value=>$c_x }, 'Minecraft::NBT::Int';
-	$level->{zPos} = bless { _name=>"zPos", _value=>$c_z }, 'Minecraft::NBT::Int';
+	$level->{xPos} = bless { _name=>"xPos", _value=>$self->{opts}->{r_x}*32+$c_x }, 'Minecraft::NBT::Int';
+	$level->{zPos} = bless { _name=>"zPos", _value=>$self->{opts}->{r_z}*32+$c_z }, 'Minecraft::NBT::Int';
 	$level->{LightPopulated} = bless { _name=>"LightPopulated", _value=>0 }, 'Minecraft::NBT::Byte';
 	$level->{Entities} = bless { _name=>"Entities", _value=>[], _type=>10 }, 'Minecraft::NBT::TagList';
 	$level->{TileEntities} = bless { _name=>"TileEntities", _value=>[], _type=>10 }, 'Minecraft::NBT::TagList';
 	$level->{LastUpdate} = bless { _name=>"LastUpdate", _value=>0 }, 'Minecraft::NBT::Long';
 	$level->{HeightMap} = bless { _name=>"HeightMap", _value=>[] }, 'Minecraft::NBT::IntArray';
+	for( 0..255 ) { push @{$level->{HeightMap}->{_value}},0; }
 	$level->{Sections} = bless { _name=>"Sections", _value=>[], _type=>10 }, 'Minecraft::NBT::TagList';
 	if( defined $self->{opts}->{init_chunk} )
 	{
@@ -253,7 +254,7 @@ sub set_biome
 
 sub from_file
 {
-	my( $class, $filename ) = @_;
+	my( $class, $filename, $r_x,$r_z ) = @_;
 
 	local $/ = undef;
 	open( my $fh, "<:bytes", $filename ) || die "failed to open $filename: $!";
@@ -261,7 +262,7 @@ sub from_file
   	my $data = <$fh>;
   	close $fh;
 
-	return $class->from_string( $data );
+	return $class->from_string( $data, $r_x,$r_z );
 }
 
 sub to_file
@@ -278,13 +279,15 @@ sub to_file
 
 sub from_string
 {
-	my( $class, $data ) = @_;
+	my( $class, $data, $r_x,$r_z ) = @_;
 
 	my $self = bless {}, $class;
 
 	$self->{data} = $data;
 	$self->{offset} = 0;
 	$self->{length} = length($data);
+	$self->{r_x} = $r_x;
+	$self->{r_z} = $r_z;
 
 	for( my $c_z=0; $c_z< 32; ++$c_z )
 	{

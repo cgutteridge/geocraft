@@ -141,7 +141,7 @@ sub region
 		if( -e $file )
 		{
 			print "LOADING REGION $r_x,$r_z .. ";
-			$self->{regions}->{$r_z}->{$r_x} = Minecraft::Region->from_file( $file );
+			$self->{regions}->{$r_z}->{$r_x} = Minecraft::Region->from_file( $file, $r_x,$r_z );
 			$self->{regions}->{$r_z}->{$r_x}->{_changed} = 0;
 			print "done\n";
 		}
@@ -160,7 +160,11 @@ sub init_region
 	my( $self, $r_x, $r_z ) = @_;
 
 	print "INIT REGION $r_x,$r_z .. ";
-	$self->{regions}->{$r_z}->{$r_x} = new Minecraft::Region($self->{opts});	
+
+	my %opts = %{$self->{opts}};
+	$opts{r_x} = $r_x;	
+	$opts{r_z} = $r_z;	
+	$self->{regions}->{$r_z}->{$r_x} = new Minecraft::Region( \%opts );
 	if( defined $self->{opts}->{init_region} )
 	{
 		&{$self->{opts}->{init_region}}( $self->{regions}->{$r_z}->{$r_x}, $r_x, $r_z );
