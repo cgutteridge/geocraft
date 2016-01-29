@@ -33,6 +33,7 @@ $Minecraft::Config::COLOURS = {
 
 "84:81:78"=> 45, # building
 "85:81:78"=> 45, # building
+"85:81:79'=> 45, # building
 
 "70:81:81"=> 9, # water
 
