@@ -130,9 +130,28 @@ sub context
 	}, "Minecraft::Context";
 }
 
+sub duration
+{
+	my( $s ) = @_;
+
+	$s = int $s;
+
+	my $seconds = $s % 60;
+	$s -= $seconds;
+	
+	my $m = ($s / 60);
+	my $minutes = $m % 60;
+	$m -= $minutes;
+
+	my $hours = ($m / 60);
+
+	return sprintf( "%d:%02d:%02d", $hours,$minutes,$seconds );
+}
+
 sub render
 {
 	my( $self, %opts ) = @_;
+
 
 	die "missing coords EAST1"  if( !defined $opts{EAST1} );
 	die "missing coords EAST2"  if( !defined $opts{EAST2} );
@@ -155,6 +174,7 @@ sub render
 		$SEALEVEL+=$opts{YSHIFT};
 	}
 
+	$self->{start} = time();
 	my $BCONFIG = {};
 	foreach my $id ( keys %{$opts{BLOCKS}} )
 	{
@@ -170,7 +190,16 @@ sub render
 	my $block_count = 0;
 	for( my $z=$SOUTH; $z<=$NORTH; ++$z ) 
 	{
-		print STDERR $WEST."..".$EAST.",".$z."\n";
+		my $ratio = ($z-$SOUTH)/($NORTH-$SOUTH+1);
+		my $spent = time()-$self->{start};
+		
+		print sprintf( "ROW: %d..%dE,%dN", $WEST,$EAST,$z );
+		if( $ratio > 0 && $ratio < 1 )
+		{
+			my $remaining = $spent / $ratio * (1-$ratio);
+			print sprintf( ".. %d%% %s remaining", int(100*$ratio), duration( $remaining ) );
+		}
+		print "\n";
 		for( my $x=$WEST; $x<=$EAST; ++$x )
 		{
 			my $context = $self->context( $x, $z, %opts );
