@@ -26,6 +26,7 @@ $Minecraft::Config::COLOURS = {
 "78:97:80"=> 2, # grass
 "78:98:80"=> 2, # grass
 "54:82:68"=> 2, # grass -- sports ground
+"94:94:84"=> 2, # grass -- actually a tree!
 
 "68:61:54"=> 98, # church
 "68:61:55"=> 98, # church
@@ -34,8 +35,10 @@ $Minecraft::Config::COLOURS = {
 "84:81:78"=> 45, # building
 "85:81:78"=> 45, # building
 "85:81:79"=> 45, # building
+"84:81:79"=> 45, # building
 
 "70:81:81"=> 9, # water
+"71:81:81"=> 9, # water
 
 "86:61:61"=> 159.15, # road 
 "97:97:72"=> 159.15, # road
@@ -47,7 +50,6 @@ $Minecraft::Config::COLOURS = {
 "88:88:87"=> 159.09, # private -cyan clay
 "88:88:88"=> 159.09, # private -cyan clay
 "94:85:84"=> 159.09, # cyan clay kinda pink on map
-"94:94:84"=> 159.09, # campus? cyan clay
 "99:83:81"=> 159.09, # cyan clay kinda pink on map
 
 "89:77:66"=> 3.01, # allotment course dirt
@@ -65,7 +67,8 @@ $Minecraft::Config::COLOURS = {
 
 "99:94:72"=> 12.0, # sand
 "100:94:72"=> 12.0, # sand
+"100:94:73"=> 12.0, # sand
+"99:94:73"=> 12.0, # sand
 
 };
-
 
