@@ -97,7 +97,7 @@ sub add_chunk
 	$level->{Biomes} = bless { _name=>"Biomes", _value=>chr(0)x256 }, 'Minecraft::NBT::ByteArray';
 	$level->{xPos} = bless { _name=>"xPos", _value=>$self->{opts}->{r_x}*32+$c_x }, 'Minecraft::NBT::Int';
 	$level->{zPos} = bless { _name=>"zPos", _value=>$self->{opts}->{r_z}*32+$c_z }, 'Minecraft::NBT::Int';
-	$level->{LightPopulated} = bless { _name=>"LightPopulated", _value=>0 }, 'Minecraft::NBT::Byte';
+	$level->{LightPopulated} = bless { _name=>"LightPopulated", _value=>1 }, 'Minecraft::NBT::Byte';
 	$level->{Entities} = bless { _name=>"Entities", _value=>[], _type=>10 }, 'Minecraft::NBT::TagList';
 	$level->{TileEntities} = bless { _name=>"TileEntities", _value=>[], _type=>10 }, 'Minecraft::NBT::TagList';
 	$level->{LastUpdate} = bless { _name=>"LastUpdate", _value=>0 }, 'Minecraft::NBT::Long';
@@ -286,8 +286,8 @@ sub from_string
 	$self->{data} = $data;
 	$self->{offset} = 0;
 	$self->{length} = length($data);
-	$self->{r_x} = $r_x;
-	$self->{r_z} = $r_z;
+	$self->{opts}->{r_x} = $r_x;
+	$self->{opts}->{r_z} = $r_z;
 
 	for( my $c_z=0; $c_z< 32; ++$c_z )
 	{
