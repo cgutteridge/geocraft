@@ -30,6 +30,7 @@ sub new
 	}
 
 	my $self = bless {}, $class;
+	$self->{filename} = $filename;
 	my $offset = 8;	
 	while( $offset<length( $data) )
 	{
@@ -67,11 +68,11 @@ sub add_chunk
 		$self->{filter} = ord( substr( $chunk, 11, 1 ) );
 		$self->{interlace} = ord( substr( $chunk, 12, 1 ) );
 
-		if( $self->{color_type} !=3 ) { die "Color type ".$self->{color_type}." not supported"; }
-		if( $self->{bit_depth} !=8 ) { die "Bit depth ".$self->{bit_depth}." not supported"; }
-		if( $self->{compression} !=0 ) { die "Compression ".$self->{compression}." not supported"; }
-		if( $self->{filter} !=0 ) { die "Filter ".$self->{filter}." not supported"; }
-		if( $self->{interlace} !=0 ) { die "Interlace ".$self->{interlace}." not supported"; }
+		if( $self->{color_type} !=3 ) { die "Color type ".$self->{color_type}." not supported in ".$self->{filename}; }
+		#if( $self->{bit_depth} !=8 ) { die "Bit depth ".$self->{bit_depth}." not supported in ".$self->{filename}; }
+		if( $self->{compression} !=0 ) { die "Compression ".$self->{compression}." not supported in ".$self->{filename}; }
+		if( $self->{filter} !=0 ) { die "Filter ".$self->{filter}." not supported in ".$self->{filename}; }
+		if( $self->{interlace} !=0 ) { die "Interlace ".$self->{interlace}." not supported in ".$self->{filename}; }
 		return;
 	}
 
@@ -93,10 +94,39 @@ sub add_chunk
 	{
 		my $idat = uncompress( $chunk );
 		my $offset = 0;
+		my $jump = 8/$self->{bit_depth};
 		for(my $y=0;$y<$self->{height};++$y) {
 			$offset++; # filter type byte
-			for(my $x=0;$x<$self->{width};++$x) {
-				$self->{pixel}->{$y}->{$x} = $self->{palette}->[ ord( substr($idat,$offset,1) ) ];
+			for(my $x=0;$x<$self->{width};$x+=$jump) {
+				my $byte = ord( substr($idat,$offset,1) );
+				# guessing order of bytes. might need to reverse it...
+				if( $self->{bit_depth} == 8 )
+				{
+					$self->{pixel}->{$y}->{$x} = $self->{palette}->[$byte];
+				}
+				elsif( $self->{bit_depth} == 4 )
+				{
+					$self->{pixel}->{$y}->{$x+0} = $self->{palette}->[15&($byte>>0)];
+					$self->{pixel}->{$y}->{$x+1} = $self->{palette}->[15&($byte>>4)];
+ 				}
+				elsif( $self->{bit_depth} == 2 )
+				{
+					$self->{pixel}->{$y}->{$x+0} = $self->{palette}->[3&($byte>>0)];
+					$self->{pixel}->{$y}->{$x+1} = $self->{palette}->[3&($byte>>2)];
+					$self->{pixel}->{$y}->{$x+2} = $self->{palette}->[3&($byte>>4)];
+					$self->{pixel}->{$y}->{$x+3} = $self->{palette}->[3&($byte>>6)];
+ 				}
+				elsif( $self->{bit_depth} == 1 )
+				{
+					$self->{pixel}->{$y}->{$x+0} = $self->{palette}->[1&($byte>>0)];
+					$self->{pixel}->{$y}->{$x+1} = $self->{palette}->[1&($byte>>1)];
+					$self->{pixel}->{$y}->{$x+2} = $self->{palette}->[1&($byte>>2)];
+					$self->{pixel}->{$y}->{$x+3} = $self->{palette}->[1&($byte>>3)];
+					$self->{pixel}->{$y}->{$x+4} = $self->{palette}->[1&($byte>>4)];
+					$self->{pixel}->{$y}->{$x+5} = $self->{palette}->[1&($byte>>5)];
+					$self->{pixel}->{$y}->{$x+6} = $self->{palette}->[1&($byte>>6)];
+					$self->{pixel}->{$y}->{$x+7} = $self->{palette}->[1&($byte>>7)];
+ 				}
 				$offset++;
 			}
 		}
