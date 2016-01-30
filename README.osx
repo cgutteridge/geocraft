@@ -1,16 +1,5 @@
-Installing the imagemagick library on OSX is relatively easy but takes ages. The best way I've found so far to do it is:
 
-Install MacPorts: https://www.macports.org/
-
-Then in the Terminal window do:
-
-  sudo port install ImageMagick
-
-Sudo will ask for your password. This will take AGES as it installs a whole raft of libraries. Then do 
-
-  sudo port install p5-perlmagick
-
-This is pretty quick. Finally you'll need:
+You'll need to install the Perl ZIP library:
   
   sudo cpan Archive::Zip
 
