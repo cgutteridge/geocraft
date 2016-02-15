@@ -3,6 +3,7 @@
 use Data::Dumper;
 use FindBin;
 use lib "$FindBin::Bin/lib";
+use Geo::Coordinates::OSGB qw(ll_to_grid grid_to_ll);
 use Minecraft;
 use Elevation;
 use Minecraft::Projection;
@@ -11,6 +12,10 @@ use Getopt::Long;
 
 my $from;
 my $to;
+my $postcode;
+my $centre;
+my $size;
+my $ll;
 my $help;
 my $yshift;
 my $replace;
@@ -32,15 +37,20 @@ BEGIN {
 
 	sub help 
 	{
-		print "$0 [--saves <mc-saves-dir>] --from <x>,<y> --to <x>,<y> <world-name>\n";
+		print "$0 [--saves <mc-saves-dir>] [--ll] --from <x>,<y> --to <x>,<y> <world-name>\n";
+		print "$0 [--saves <mc-saves-dir>] [--ll] [--centre <x>,<y> | --postcode <code> ] --size <n>|<w>,<h> <world-name>\n";
 		print "Additional options: --replace --yshift <n> --blocks <file> --colours <file>\n";
 	}
 
 	if( !GetOptions (
     "from=s"   => \$from,
     "to=s"   => \$to,
+              	"postcode=s"   => \$postcode,
+              	"centre=s"   => \$centre,
+              	"size=s"   => \$size,
     "blocks=s"   => \$blocks,
     "colours=s"   => \$colours,
+              	"ll"  => \$ll,
     "replace"  => \$replace,
     "yshift=i", \$yshift,
     "help"  => \$help,
@@ -101,6 +111,16 @@ if( !defined $worldname )
 
 # goal is to end up with bottom left & top right corners in Easting/Northing
 
+if( defined $postcode )
+{
+	$postcode = uc $postcode;
+	$postcode =~ s/\s//g;
+
+	my( $e, $n ) = postcode_to_en($postcode);
+	$centre = "$e,$n";
+	$ll = 0;
+}
+
 sub mya
 {
 	return @_;
@@ -108,12 +128,56 @@ sub mya
 
 my( $e1, $e2, $n1, $n2 );
 my( $ANCHOR_E, $ANCHOR_N );
-if( defined $from && defined $to )
+if( defined $centre )
+{
+	my( $x,$y ) = split( ",", $centre );
+
+	my( $e,$n );
+	if( $ll )
+	{
+		($e,$n) = Elevation::ll_to_en( $x,$y);
+	}
+	else
+	{
+		($e,$n)=( $x,$y);
+	}
+
+	if( !defined $size )
+	{
+		die( "--size required with --postcode or --centre" );
+	}
+	my( $width,$height );
+	if( $size =~ m/,/ )
+	{
+		($width,$height) = split( ",", $size );
+	}
+	else
+	{
+		($width,$height) = ($size,$size);
+	}
+	($ANCHOR_E,$ANCHOR_N) = (int $e,int $n);
+
+	$OPTS->{EAST1} = -int( $width/2 );
+	$OPTS->{EAST2} = int( $width/2 );
+	$OPTS->{NORTH1} = -int( $height/2 );
+	$OPTS->{NORTH2} = int( $height/2 );
+}
+elsif( defined $from && defined $to )
 {
 	my( $x1, $y1 ) = split( ",", $from );
 	my( $x2, $y2 ) = split( ",", $to );
-  my( $e1, $n1 ) = Elevation::ll_to_en($x1, $y1);
-  my( $e2, $n2 ) = Elevation::ll_to_en($x2, $y2);
+	my( $e1,$n1 );
+	my( $e2,$n2 );
+	if( $ll )
+	{
+		($e1,$n1)=Elevation::ll_to_en( $x1,$y1);
+		($e2,$n2)=Elevation::ll_to_en( $x2,$y2);
+	}
+	else
+	{
+		($e1,$n1)=($x1,$y1);
+		($e2,$n2)=($x2,$y2);
+	}
 	if( $e1 > $e2 ) { ($e2, $e1) = ($e1, $e2); }
 	if( $n1 > $n2 ) { ($n2, $n1) = ($n1, $n2); }
 
@@ -126,7 +190,7 @@ if( defined $from && defined $to )
 }
 else
 {
-	die "missing from+to";
+	die "missing centre+size or from+to";
 }
 	
 ############################### ###############################
@@ -195,9 +259,24 @@ $OPTS->{ELEVATION} = new Elevation(
 	"$FindBin::Bin/var/tmp", 
 );
 
-my $p = Minecraft::Projection->new( $world, 0, 0, $ANCHOR_E, $ANCHOR_N);
+my $p = Minecraft::Projection->new( $world, 0,0, $ANCHOR_E,$ANCHOR_N, "OSGB36" );
 print "Projection created. MC0,0 = ${ANCHOR_E}E ${ANCHOR_N}N\n";
 
 $p->render( %$OPTS );
 print "Map rendered OK\n";
 exit;
+
+use JSON::PP;
+sub postcode_to_en
+{
+	my( $postcode ) = @_;
+
+	my $url = "http://data.ordnancesurvey.co.uk/doc/postcodeunit/$postcode.json";
+	print "Getting postcode: $url\n";
+	my $json = `curl -s $url`;
+	my $data = decode_json $json;
+	my $pdata = $data->{"http://data.ordnancesurvey.co.uk/id/postcodeunit/$postcode"};
+    	my $e = $pdata->{'http://data.ordnancesurvey.co.uk/ontology/spatialrelations/easting'}->[0]->{value};
+    	my $n = $pdata->{'http://data.ordnancesurvey.co.uk/ontology/spatialrelations/northing'}->[0]->{value};
+	return( $e,$n );
+}
