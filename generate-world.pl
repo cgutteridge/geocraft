@@ -254,10 +254,10 @@ $OPTS->{EXTEND_DOWNWARDS} = 9;
 $OPTS->{TOP_OF_WORLD} = 254;
 $OPTS->{YSHIFT} = $yshift;
 
-$OPTS->{ELEVATION} = new Elevation( 
-	"$FindBin::Bin/var/lidar", 
-	"$FindBin::Bin/var/tmp", 
-);
+#$OPTS->{ELEVATION} = new Elevation(
+#	"$FindBin::Bin/var/lidar",
+#	"$FindBin::Bin/var/tmp",
+#);
 
 my $p = Minecraft::Projection->new( $world, 0,0, $ANCHOR_E,$ANCHOR_N, "OSGB36" );
 print "Projection created. MC0,0 = ${ANCHOR_E}E ${ANCHOR_N}N\n";
