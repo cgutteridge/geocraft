@@ -1,8 +1,7 @@
 
 package Elevation;
 
-use Geo::Coordinates::OSGB qw(ll_to_grid grid_to_ll);
-use Geo::Coordinates::OSTN02;
+use Math::Trig;
 use POSIX;
 use Data::Dumper;
 use JSON::PP;
@@ -157,23 +156,31 @@ sub add_file
 	$self->{files}->{$model}->{$metadata->{yllcorner}}->{$metadata->{xllcorner}} = $filename;
 }
 
+
+my $EARTH_RADIUS_M = 6378137;
+my $EARTH_CIRCUMFERENCE_M = $EARTH_RADIUS_M * pi * 2;
+my $M_PER_DEGREE_LAT = $EARTH_CIRCUMFERENCE_M / 360;
+
+
 # STATIC
+# multiplier 2 should not be there but is needed
 sub ll_to_en
 {
-	my( $lat, $long ) = @_;
-
-	my ($x, $y) = Geo::Coordinates::OSGB::ll_to_grid($lat, $long, 'ETRS89'); # or 'WGS84'
-	return Geo::Coordinates::OSTN02::ETRS89_to_OSGB36($x, $y );
+	my( $lat, $lon ) = @_;
+  my $m_per_degree_lon = $M_PER_DEGREE_LAT * cos($lat / 180 * pi);
+  return( $lon * $m_per_degree_lon * 2, $lat * $M_PER_DEGREE_LAT );
 }
+
 # STATIC
+# multiplier 2 should not be there but is needed
 sub en_to_ll
 {
 	my( $e, $n ) = @_;
-
-	my( $x,$y ) =  Geo::Coordinates::OSTN02::OSGB36_to_ETRS89( $e, $n );
-	return Geo::Coordinates::OSGB::grid_to_ll($x, $y, 'ETRS89'); # or 'WGS84'
+  my $lat = $n / $M_PER_DEGREE_LAT;
+  my $m_per_degree_lon = $M_PER_DEGREE_LAT * cos($lat / 180 * pi);
+  my $lon = $e / $m_per_degree_lon / 2;
+  return( $lon, $lat );
 }
-
 
 sub ll
 {
@@ -292,6 +299,5 @@ sub cell_elevation
 
 	return $self->{cells}->{$model}->{$cell_n}->{$cell_e};
 }
-
 
 1;
