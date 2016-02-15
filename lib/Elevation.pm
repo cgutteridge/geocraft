@@ -84,7 +84,7 @@ sub download
 	foreach my $item ( @$cat_record )
 	{
 		my $id = $item->{metaDataUrl};
-		if( !defined $id ) { print "Missing metaDataUrl.. skipping dataset\n"; }
+		if( !defined $id ) { print "Missing metaDataUrl.. skipping dataset\n"; next; }
 		$id =~ s/1$//;
 		$target->{$id} = $item->{url};
 	}

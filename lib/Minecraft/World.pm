@@ -130,6 +130,24 @@ sub read_level
 	$self->{level} = Minecraft::NBT->from_string( $buffer );
 }
 
+sub regions
+{
+	my( $self ) = @_;
+
+	my $region_dir = $self->{dir}."/region/";
+	my @regions = ();
+	my $dh;
+	opendir( $dh, $region_dir ) || die "can't read dir $region_dir: $!";
+	while( my $file = readdir( $dh ) )
+	{
+		if( $file =~ m/^r\.(-?\d+)\.(-?\d+)\.mca$/ ) 
+		{
+			push @regions, [$1,$2];
+		}
+	}
+	closedir( $dh );
+	return @regions;
+}
 
 sub region
 {

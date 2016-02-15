@@ -1,0 +1,104 @@
+#!/usr/bin/env perl
+
+use Data::Dumper;
+use FindBin;
+use lib "$FindBin::Bin/lib";
+use Minecraft;
+use Getopt::Long;
+
+my $worldname;
+my $from;
+my $to;
+my $help;
+
+BEGIN { 
+	sub help 
+	{
+		print "$0 <world-name> <from-block-id> <to-block-id>\n";
+	}
+
+	if( !GetOptions (
+              	"help"  => \$help,
+	)) {
+		print STDERR ("Error in command line arguments\n");
+		help();
+		exit( 1 );
+	}
+
+	($worldname,$from,$to) = @ARGV;
+}
+
+use strict;
+use warnings;
+
+if( $help )
+{
+	help();
+	exit( 0 );
+}
+
+my( $from_block, $from_st ) = split( /\./, $from );
+my( $to_block, $to_st ) = split( /\./, $to );
+
+$to = sprintf( "%d.%02d", $to_block, $to_st );
+
+
+if( !defined $worldname )
+{
+	die "No worldname given";
+}
+
+if(! -e "$FindBin::Bin/saves/$worldname" )
+{
+	die "Can't find world $worldname";
+}
+
+my $mc = new Minecraft( "$FindBin::Bin/saves" );
+my $world = $mc->world( $worldname );
+my @regions = $world->regions;
+for( my $reg_i=0;$reg_i<scalar @regions; $reg_i++ ) {
+	my $r_pos = $regions[$reg_i];
+	my $region= $world->region( $r_pos->[0], $r_pos->[1] );
+	print "Region ".($reg_i+1)." of ".(scalar @regions)." [".$r_pos->[0].",".$r_pos->[1]."] .. ";
+	my $changed = 0;
+	
+	for( my $c_z=0; $c_z<32; ++$c_z )
+	{
+		X: for( my $c_x=0; $c_x<32; ++$c_x )
+		{
+			next X if( !defined $region->{$c_z}->{$c_x} );
+			my $chunk = $region->{$c_z}->{$c_x}->{chunk};
+			# print "($c_x)($c_z)\n";
+			my $sections = $chunk->{Level}->{Sections}->{_value};
+
+			for( my $section_y=0; $section_y<scalar @$sections; ++$section_y ) 
+			{
+				for( my $s_y=0;$s_y<16;$s_y++) {
+					for( my $s_x=0;$s_x<16;$s_x++) {
+						for( my	 $s_z=0;$s_z<16;$s_z++) {
+							my $bx = $c_x*16 + $s_x;
+							my $by = $section_y*16 + $s_y;
+							my $bz = $c_z*16 + $s_z;
+							my $block = $region->get_block( $bx,$by,$bz );
+							my $subtype = 0;
+							if( $block == $from_block ) {
+								$subtype = $region->get_subtype( $bx,$by,$bz );
+								if( $subtype == $from_st ) {
+									$region->set_block( $bx,$by,$bz, $to );
+									$changed++;
+								}
+							}
+						}
+					}
+				}
+
+			}
+		}
+	}
+
+	print "$changed blocks modified\n";
+	$world->save;
+}
+print "DONE\n";
+
+exit;

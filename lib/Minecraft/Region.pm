@@ -159,6 +159,24 @@ sub get_block
 	my $offset = $self->block_offset($rel_x,$y,$rel_z);
 	return ord( substr( $section->{Blocks}->{_value}, $offset, 1 ) );
 }
+sub get_subtype
+{
+	my($self, $rel_x,$y,$rel_z ) = @_;
+
+	my $section = $self->block_section($rel_x,$y,$rel_z);
+	return 0 if( !$section );
+	my $offset = $self->block_offset($rel_x,$y,$rel_z);
+
+	my $byte = ord substr( $section->{Data}->{_value}, ($offset/2), 1 );
+	if( $offset % 2 == 0 )
+	{
+		return $byte & 15;
+	}
+	else
+	{
+		return ($byte&240)/16;
+	}
+}
 sub set_block
 {
 	my( $self,   $rel_x,$y,$rel_z, $type ) = @_;
