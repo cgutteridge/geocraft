@@ -4,6 +4,7 @@ use Data::Dumper;
 use FindBin;
 use lib "$FindBin::Bin/lib";
 use Geo::Coordinates::OSGB qw(ll_to_grid grid_to_ll);
+use Geo::Coordinates::OSTN02;
 use Minecraft;
 use Elevation;
 use Minecraft::Projection;
@@ -21,6 +22,7 @@ my $yshift;
 my $replace;
 my $blocks;
 my $colours;
+my $elevation_plugin;
 
 BEGIN { 
 	sub load_config
@@ -39,21 +41,22 @@ BEGIN {
 	{
 		print "$0 [--saves <mc-saves-dir>] [--ll] --from <x>,<y> --to <x>,<y> <world-name>\n";
 		print "$0 [--saves <mc-saves-dir>] [--ll] [--centre <x>,<y> | --postcode <code> ] --size <n>|<w>,<h> <world-name>\n";
-		print "Additional options: --replace --yshift <n> --blocks <file> --colours <file>\n";
+		print "Additional options: --replace --yshift <n> --blocks <file> --colours <file> --elevation <plugin>\n";
 	}
 
 	if( !GetOptions (
     "from=s"   => \$from,
     "to=s"   => \$to,
-              	"postcode=s"   => \$postcode,
-              	"centre=s"   => \$centre,
-              	"size=s"   => \$size,
+    "postcode=s"   => \$postcode,
+    "centre=s"   => \$centre,
+    "size=s"   => \$size,
     "blocks=s"   => \$blocks,
     "colours=s"   => \$colours,
-              	"ll"  => \$ll,
+    "ll"  => \$ll,
     "replace"  => \$replace,
     "yshift=i", \$yshift,
     "help"  => \$help,
+    "elevation=s" => \$elevation_plugin,
 	)) {
 		print STDERR ("Error in command line arguments\n");
 		help();
@@ -111,7 +114,7 @@ if( !defined $worldname )
 
 # goal is to end up with bottom left & top right corners in Easting/Northing
 
-if( defined $postcode )
+if( defined $postcode ) 
 {
 	$postcode = uc $postcode;
 	$postcode =~ s/\s//g;
@@ -133,9 +136,9 @@ if( defined $centre )
 	my( $x,$y ) = split( ",", $centre );
 
 	my( $e,$n );
-	if( $ll )
+	if( $ll ) 
 	{
-		($e,$n) = Elevation::ll_to_en( $x,$y);
+		($e,$n) = ll_to_en( $x,$y);
 	}
 	else
 	{
@@ -157,31 +160,31 @@ if( defined $centre )
 	}
 	($ANCHOR_E,$ANCHOR_N) = (int $e,int $n);
 
-	$OPTS->{EAST1} = -int( $width/2 );
-	$OPTS->{EAST2} = int( $width/2 );
-	$OPTS->{NORTH1} = -int( $height/2 );
-	$OPTS->{NORTH2} = int( $height/2 );
-}
+	$OPTS->{EAST1} = -int( $width/2 );	
+	$OPTS->{EAST2} = int( $width/2 );	
+	$OPTS->{NORTH1} = -int( $height/2 );	
+	$OPTS->{NORTH2} = int( $height/2 );	
+}	
 elsif( defined $from && defined $to )
 {
-	my( $x1, $y1 ) = split( ",", $from );
-	my( $x2, $y2 ) = split( ",", $to );
+	my( $x1,$y1 ) = split( ",", $from );
+	my( $x2,$y2 ) = split( ",", $to );
 	my( $e1,$n1 );
 	my( $e2,$n2 );
-	if( $ll )
+	if( $ll ) 
 	{
-		($e1,$n1)=Elevation::ll_to_en( $x1,$y1);
-		($e2,$n2)=Elevation::ll_to_en( $x2,$y2);
+		($e1,$n1)=ll_to_en( $x1,$y1);
+		($e2,$n2)=ll_to_en( $x2,$y2);
 	}
 	else
 	{
 		($e1,$n1)=($x1,$y1);
 		($e2,$n2)=($x2,$y2);
 	}
-	if( $e1 > $e2 ) { ($e2, $e1) = ($e1, $e2); }
-	if( $n1 > $n2 ) { ($n2, $n1) = ($n1, $n2); }
-
-	$ANCHOR_E = int($e1);
+	if( $e1>$e2 ) { ($e2,$e1)=($e1,$e2); }	
+	if( $n1>$n2 ) { ($n2,$n1)=($n1,$n2); }	
+	
+	$ANCHOR_E = int($e1);	
 	$ANCHOR_N = int($n1);
 	$OPTS->{EAST1} = 0;
 	$OPTS->{EAST2} = int( $e2-$e1 );
@@ -254,13 +257,15 @@ $OPTS->{EXTEND_DOWNWARDS} = 9;
 $OPTS->{TOP_OF_WORLD} = 254;
 $OPTS->{YSHIFT} = $yshift;
 
-#$OPTS->{ELEVATION} = new Elevation(
-#	"$FindBin::Bin/var/lidar",
-#	"$FindBin::Bin/var/tmp",
-#);
+$elevation_plugin = "UKDEFRA" if( !defined $elevation_plugin );
+eval "use Elevation::$elevation_plugin;";
+$OPTS->{ELEVATION} = "Elevation::$elevation_plugin"->new(
+	"$FindBin::Bin/var/lidar", 
+	"$FindBin::Bin/var/tmp", 
+);
 
 my $p = Minecraft::Projection->new( $world, 0,0, $ANCHOR_E,$ANCHOR_N, "OSGB36" );
-print "Projection created. MC0,0 = ${ANCHOR_E}E ${ANCHOR_N}N\n";
+print "Projection created. MC0,0 = ${ANCHOR_E}E ${ANCHOR_N}N\n"; 
 
 $p->render( %$OPTS );
 print "Map rendered OK\n";
@@ -279,4 +284,13 @@ sub postcode_to_en
     	my $e = $pdata->{'http://data.ordnancesurvey.co.uk/ontology/spatialrelations/easting'}->[0]->{value};
     	my $n = $pdata->{'http://data.ordnancesurvey.co.uk/ontology/spatialrelations/northing'}->[0]->{value};
 	return( $e,$n );
+}
+
+
+sub ll_to_en
+{
+	my( $lat, $long ) = @_;
+
+	my ($x, $y) = Geo::Coordinates::OSGB::ll_to_grid($lat, $long, 'ETRS89'); # or 'WGS84'
+	return Geo::Coordinates::OSTN02::ETRS89_to_OSGB36($x, $y );
 }
