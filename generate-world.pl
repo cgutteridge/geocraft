@@ -3,7 +3,7 @@
 use Data::Dumper;
 use FindBin;
 use lib "$FindBin::Bin/lib";
-use Math::Trig;
+use Geo::Transform;
 use Minecraft;
 use Elevation;
 use Minecraft::Projection;
@@ -137,7 +137,7 @@ if( defined $centre )
 	my( $e,$n );
 	if( $ll ) 
 	{
-		($e,$n) = ll_to_en( $x,$y);
+		($e,$n) = Geo::Transform::ll_to_en($x, $y, "EPSG4326");
 	}
 	else
 	{
@@ -172,8 +172,8 @@ elsif( defined $from && defined $to )
 	my( $e2,$n2 );
 	if( $ll ) 
 	{
-		($e1,$n1)=ll_to_en( $x1,$y1);
-		($e2,$n2)=ll_to_en( $x2,$y2);
+		($e1,$n1)=Geo::Transform::ll_to_en($x1, $y1, "EPSG4326");
+		($e2,$n2)=Geo::Transform::ll_to_en($x2, $y2, "EPSG4326");
 	}
 	else
 	{
@@ -263,7 +263,7 @@ $OPTS->{ELEVATION} = "Elevation::$elevation_plugin"->new(
 	"$FindBin::Bin/var/tmp", 
 );
 
-my $p = Minecraft::Projection->new( $world, 0,0, $ANCHOR_E,$ANCHOR_N, "EPSG4326" );
+my $p = Minecraft::Projection->new( $world, 0, 0, $ANCHOR_E,$ANCHOR_N, "EPSG4326" );
 print "Projection created. MC0,0 = ${ANCHOR_E}E ${ANCHOR_N}N\n"; 
 
 $p->render( %$OPTS );
@@ -283,20 +283,6 @@ sub postcode_to_en
     	my $e = $pdata->{'http://data.ordnancesurvey.co.uk/ontology/spatialrelations/easting'}->[0]->{value};
     	my $n = $pdata->{'http://data.ordnancesurvey.co.uk/ontology/spatialrelations/northing'}->[0]->{value};
 	return( $e,$n );
-}
-
-
-###############################################################################
-
-sub ll_to_en
-{
-  my $EARTH_RADIUS_M = 6378137;
-  my $EARTH_CIRCUMFERENCE_M = $EARTH_RADIUS_M * pi * 2;
-  my $M_PER_DEGREE_LAT = $EARTH_CIRCUMFERENCE_M / 360;
-
-	my( $lat, $lon ) = @_;
-  my $m_per_degree_lon = $M_PER_DEGREE_LAT * cos($lat / 180 * pi);
-  return( $lon * $m_per_degree_lon, $lat * $M_PER_DEGREE_LAT );
 }
 
 1;

@@ -1,7 +1,6 @@
 package Minecraft::Projection;
 
-use Geo::Coordinates::OSGB;
-use Math::Trig;
+use Geo::Transform;
 use Data::Dumper;
 use Minecraft::Context;
 use strict;
@@ -11,39 +10,6 @@ my $ZOOM = 18;
 my $M_PER_PIX = 0.596;
 my $TILE_W = 256;
 my $TILE_H = 256;
-
-sub grid_to_ll
-{
-	my( $e, $n, $grid ) = @_;
-
-	if( defined $grid && $grid eq "MERC" )
-	{
-		my $lat = rad2deg(atan(sinh( pi - (2 * pi * -$n / (2**$ZOOM * ($TILE_H * $M_PER_PIX))) )));
-		my $long = (($e / ($TILE_W * $M_PER_PIX)) / 2**$ZOOM)*360-180;
-		return( $lat, $long );
-	}
-	if( defined $grid && $grid eq "OSGB36" )
-	{
-		my( $x,$y)= Geo::Coordinates::OSTN02::OSGB36_to_ETRS89($e, $n );
-		return Geo::Coordinates::OSGB::grid_to_ll($x, $y, 'ETRS89'); # or 'WGS84'
-	}
-
-  ###############################################################################
-
-  my $EARTH_RADIUS_M = 6378137;
-  my $EARTH_CIRCUMFERENCE_M = $EARTH_RADIUS_M * pi * 2;
-  my $M_PER_DEGREE_LAT = $EARTH_CIRCUMFERENCE_M / 360;
-
-  my $lat = $n / $M_PER_DEGREE_LAT;
-  my $m_per_degree_lon = $M_PER_DEGREE_LAT * cos($lat / 180 * pi);
-  my $lon = $e / $m_per_degree_lon;
-  return( $lon, $lat );
-
-  ###############################################################################
-
-  #	return Geo::Coordinates::OSGB::grid_to_ll( $e,$n, $grid );
-}
-
 
 sub new
 {
@@ -63,7 +29,6 @@ sub new
 # more mc_x : more easting
 # more mc_y : less northing
 
-
 sub context
 {
 	my( $self, $x, $z, %opts ) = @_;
@@ -71,7 +36,7 @@ sub context
 	my $e = $self->{offset_e} + $x;
 	my $n = $self->{offset_n} - $z;
 
-	my($lat, $long) = grid_to_ll( $e, $n, $self->{grid} );
+	my($lat, $long) = Geo::Transform::en_to_ll( $e, $n, $self->{grid} );
 
 	my $el = 0;
 	my $feature_height = 0;
