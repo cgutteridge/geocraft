@@ -284,5 +284,3 @@ sub postcode_to_en
     	my $n = $pdata->{'http://data.ordnancesurvey.co.uk/ontology/spatialrelations/northing'}->[0]->{value};
 	return( $e,$n );
 }
-
-1;
