@@ -3,8 +3,7 @@
 use Data::Dumper;
 use FindBin;
 use lib "$FindBin::Bin/lib";
-use Geo::Coordinates::OSGB qw(ll_to_grid grid_to_ll);
-use Geo::Coordinates::OSTN02;
+use Math::Trig;
 use Minecraft;
 use Elevation;
 use Minecraft::Projection;
@@ -264,7 +263,7 @@ $OPTS->{ELEVATION} = "Elevation::$elevation_plugin"->new(
 	"$FindBin::Bin/var/tmp", 
 );
 
-my $p = Minecraft::Projection->new( $world, 0,0, $ANCHOR_E,$ANCHOR_N, "OSGB36" );
+my $p = Minecraft::Projection->new( $world, 0,0, $ANCHOR_E,$ANCHOR_N, "EPSG4326" );
 print "Projection created. MC0,0 = ${ANCHOR_E}E ${ANCHOR_N}N\n"; 
 
 $p->render( %$OPTS );
@@ -287,10 +286,17 @@ sub postcode_to_en
 }
 
 
+###############################################################################
+
 sub ll_to_en
 {
-	my( $lat, $long ) = @_;
+  my $EARTH_RADIUS_M = 6378137;
+  my $EARTH_CIRCUMFERENCE_M = $EARTH_RADIUS_M * pi * 2;
+  my $M_PER_DEGREE_LAT = $EARTH_CIRCUMFERENCE_M / 360;
 
-	my ($x, $y) = Geo::Coordinates::OSGB::ll_to_grid($lat, $long, 'ETRS89'); # or 'WGS84'
-	return Geo::Coordinates::OSTN02::ETRS89_to_OSGB36($x, $y );
+	my( $lat, $lon ) = @_;
+  my $m_per_degree_lon = $M_PER_DEGREE_LAT * cos($lat / 180 * pi);
+  return( $lon * $m_per_degree_lon, $lat * $M_PER_DEGREE_LAT );
 }
+
+1;
