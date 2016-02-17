@@ -13,10 +13,9 @@ sub new
 	my $self = bless { %opts },$class;
 	$self->{tiles} = {};
 
-
-
 	return $self;
 }
+
 #	zoom=>19,
 #	spread=>4,
 #	width=>256,
@@ -51,8 +50,6 @@ sub tile
 	}
 	return $self->{tiles}->{$fn};
 }
-
-
 
 sub col_on_tile
 {
