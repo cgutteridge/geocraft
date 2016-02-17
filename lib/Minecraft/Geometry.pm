@@ -5,6 +5,8 @@ use JSON::PP;
 use utf8;
 use strict;
 use warnings;
+use Data::Dumper;
+
 
 sub new
 {
@@ -17,28 +19,35 @@ sub new
   my $data;
   if( !-e "$self->{dir}/$fn" )
   {
-    my $cmd = "curl -s '$self->{url}?bbox=$self->{bbox}' > $self->{dir}/$fn";
-    print "$cmd\n";
-    my $json = `$cmd`;
-  	$data = decode_json $json;
+#    my $cmd = "curl -s '$self->{url}?bbox=$self->{bbox}' > $self->{dir}/$fn";
+#    print "$cmd\n";
+#    my $json = `$cmd`;
+#  	$data = decode_json $json;
   }
   else
   {
 #   binmode STDOUT, ":utf8";
     my $json;
-    local $/; #Enable 'slurp' mode
-    open my $fh, "<", "$self->{dir}/$fn";
-    $json = <$fh>;
-    close $fh;
-    $data = decode_json($json);
+#    local $/; #Enable 'slurp' mode
+#    open my $fh, "<", "$self->{dir}/$fn";
+#    $json = <$fh>;
+#    close $fh;
+#    $data = decode_json($json);
 
-    print "ID " . $data->{'features'}->[0]->{'id'} . "\n";
+#print Dumper $data;
+#    print "ID " . $data->{'features'}->[0]->{'id'} . "\n";
   }
+
+#my $features = $data->{'features'};s
+#foreach my $element (@$data->{'features'})
+#{
+#      print Dumper $element;
+#}
 
 	return $self;
 }
 
-sub block_at
+sub x_block_at
 {
 	my( $self, $lat, $long ) = @_;
 

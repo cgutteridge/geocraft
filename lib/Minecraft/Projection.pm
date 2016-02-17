@@ -37,6 +37,7 @@ sub context
 	my $n = $self->{offset_n} - $z;
 
 	my($lat, $long) = Geo::Transform::en_to_ll( $e, $n, $self->{grid} );
+  # print "LAT $lat LON $long E $e N $n $self->{grid}\n";
 
 	my $el = 0;
 	my $feature_height = 0;

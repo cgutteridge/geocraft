@@ -14,14 +14,15 @@ use Math::Trig;
   {
     my( $lat, $lon ) = @_;
     my $m_per_degree_lon = $M_PER_DEGREE_LAT * cos($lat / 180 * pi);
-    return( $lon * $m_per_degree_lon, $lat * $M_PER_DEGREE_LAT );
+    return( $lon * $m_per_degree_lon * 2, $lat * $M_PER_DEGREE_LAT );
   }
 
   sub en_to_ll
   {
+    my( $e, $n ) = @_;
     my $lat = $n / $M_PER_DEGREE_LAT;
     my $m_per_degree_lon = $M_PER_DEGREE_LAT * cos($lat / 180 * pi);
-    my $lon = $e / $m_per_degree_lon;
+    my $lon = $e / $m_per_degree_lon / 2;
     return( $lon, $lat );
   }
 }

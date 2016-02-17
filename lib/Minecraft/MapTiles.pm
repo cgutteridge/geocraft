@@ -43,7 +43,7 @@ sub tile
 		if( !-e "$self->{dir}/$fn" )
 		{
 			my $cmd = "curl -s '".$self->{url}.$self->{zoom}."/$xtile/$ytile.png' > ".$self->{dir}."/$fn";
-			#print "$cmd\n";
+#			print "$cmd\n";
 			`$cmd`;
 		}
 		$self->{tiles}->{$fn} = new LitePNG( $self->{dir}."/$fn" );
@@ -102,7 +102,7 @@ sub spread_colours
 sub block_at
 {
 	my( $self, $lat, $long ) = @_;
-	
+
 	my $scores = {};
 	my $best = "FAIL";
 	my $max = 0;
