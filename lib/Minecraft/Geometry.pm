@@ -1,6 +1,8 @@
 
 package Minecraft::Geometry;
 
+use JSON::PP;
+use utf8;
 use strict;
 use warnings;
 
@@ -12,10 +14,25 @@ sub new
 
 	my $fn = "$self->{bbox}.json";
 
-  if( !-e "$self->{dir}/$fn" ) {
+  my $data;
+  if( !-e "$self->{dir}/$fn" )
+  {
     my $cmd = "curl -s '$self->{url}?bbox=$self->{bbox}' > $self->{dir}/$fn";
     print "$cmd\n";
-    `$cmd`;
+    my $json = `$cmd`;
+  	$data = decode_json $json;
+  }
+  else
+  {
+#   binmode STDOUT, ":utf8";
+    my $json;
+    local $/; #Enable 'slurp' mode
+    open my $fh, "<", "$self->{dir}/$fn";
+    $json = <$fh>;
+    close $fh;
+    $data = decode_json($json);
+
+    print "ID " . $data->{'features'}->[0]->{'id'} . "\n";
   }
 
 	return $self;
