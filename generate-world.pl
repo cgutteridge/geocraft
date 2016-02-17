@@ -8,6 +8,7 @@ use Minecraft;
 use Elevation;
 use Minecraft::Projection;
 use Minecraft::MapTiles;
+use Minecraft::Geometry;
 use Getopt::Long;
 
 my $from;
@@ -123,6 +124,8 @@ if( defined $postcode )
 	$ll = 0;
 }
 
+my $bbox;
+
 sub mya
 {
 	return @_;
@@ -172,6 +175,10 @@ elsif( defined $from && defined $to )
 	my( $e2,$n2 );
 	if( $ll ) 
 	{
+		if( $x1>$x2 ) { ($x2,$x1)=($x1,$x2); }
+  	if( $y1>$y2 ) { ($y2,$y1)=($y1,$y2); }
+		$bbox = join(",", $y2, $x2, $y1, $x1); # NESW
+
 		($e1,$n1)=Geo::Transform::ll_to_en($x1, $y1, "EPSG4326");
 		($e2,$n2)=Geo::Transform::ll_to_en($x2, $y2, "EPSG4326");
 	}
@@ -180,7 +187,7 @@ elsif( defined $from && defined $to )
 		($e1,$n1)=($x1,$y1);
 		($e2,$n2)=($x2,$y2);
 	}
-	if( $e1>$e2 ) { ($e2,$e1)=($e1,$e2); }	
+	if( $e1>$e2 ) { ($e2,$e1)=($e1,$e2); }
 	if( $n1>$n2 ) { ($n2,$n1)=($n1,$n2); }	
 	
 	$ANCHOR_E = int($e1);	
@@ -200,6 +207,7 @@ else
 if( !-d "$FindBin::Bin/saves" ) { mkdir( "$FindBin::Bin/saves" ); }
 if( !-d "$FindBin::Bin/var" ) { mkdir( "$FindBin::Bin/var" ); }
 if( !-d "$FindBin::Bin/var/tiles" ) { mkdir( "$FindBin::Bin/var/tiles" ); }
+if( !-d "$FindBin::Bin/var/geometry" ) { mkdir( "$FindBin::Bin/var/geometry" ); }
 if( !-d "$FindBin::Bin/var/tmp" ) { mkdir( "$FindBin::Bin/var/tmp" ); }
 if( !-d "$FindBin::Bin/var/lidar" ) { mkdir( "$FindBin::Bin/var/lidar" ); }
 if( !-d "$FindBin::Bin/var/lidar/DSM" ) { mkdir( "$FindBin::Bin/var/lidar/DSM" ); }
@@ -239,7 +247,6 @@ my $world = $mc->world( $worldname, init_chunk=>sub {
 	}
 });
 
-
 $OPTS->{MAPTILES} = new Minecraft::MapTiles(
 	zoom=>19,
 	spread=>3,
@@ -250,6 +257,14 @@ $OPTS->{MAPTILES} = new Minecraft::MapTiles(
 	default_block=>1,
 	map=>$Minecraft::Config::COLOURS,
 );
+
+if (defined $bbox) {
+  $OPTS->{GEOMETRY} = new Minecraft::Geometry(
+    dir=>"$FindBin::Bin/var/geometry",
+    url=>"http://data.osmbuildings.org/0.2/geocraft2016-02/area.json",
+    bbox=>$bbox,
+  );
+}
 
 $OPTS->{BLOCKS} = $Minecraft::Config::BLOCKS;
 $OPTS->{EXTEND_DOWNWARDS} = 9;
