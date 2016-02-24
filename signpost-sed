@@ -1,0 +1,91 @@
+#!/usr/bin/env perl
+
+use Data::Dumper;
+use FindBin;
+use lib "$FindBin::Bin/lib";
+use Minecraft;
+use Getopt::Long;
+
+my $worldname;
+my $command;
+my $help;
+
+# This crazy little script finds every signpost in the world and lets you modify them eg.
+# ./sign-sed MyWorld 's/color/colour/g;'
+# the perl code given should alter $_
+
+BEGIN { 
+	sub help 
+	{
+		print "$0 <world-name> <perl-code>\n";
+	}
+
+	if( !GetOptions (
+              	"help"  => \$help,
+	)) {
+		print STDERR ("Error in command line arguments\n");
+		help();
+		exit( 1 );
+	}
+
+	($worldname, $command) = @ARGV;
+}
+
+use strict;
+use warnings;
+
+if( $help )
+{
+	help();
+	exit( 0 );
+}
+
+
+if( !defined $worldname )
+{
+	die "No worldname given";
+}
+
+if(! -e "$FindBin::Bin/saves/$worldname" )
+{
+	die "Can't find world $worldname";
+}
+
+my $mc = new Minecraft( "$FindBin::Bin/saves" );
+my $world = $mc->world( $worldname );
+my @regions = $world->regions;
+for( my $reg_i=0;$reg_i<scalar @regions; $reg_i++ ) {
+	my $r_pos = $regions[$reg_i];
+	my $region= $world->region( $r_pos->[0], $r_pos->[1] );
+	print "Region ".($reg_i+1)." of ".(scalar @regions)." [".$r_pos->[0].",".$r_pos->[1]."] .. ";
+	
+	for( my $c_z=0; $c_z<32; ++$c_z )
+	{
+		X: for( my $c_x=0; $c_x<32; ++$c_x )
+		{
+			next X if( !defined $region->{$c_z}->{$c_x} );
+			my $chunk = $region->{$c_z}->{$c_x}->{chunk};
+			# print "($c_x)($c_z)\n";
+			foreach my $te ( @{ $chunk->{Level}->{TileEntities}->{_value} } ) {
+				if( $te->{id}->{_value} eq "Sign" ) {
+					for( my $i=1; $i<=4; ++$i ) {
+						$_ = $te->{"Text$i"}->{_value};
+						$_ =~ s/^"//;
+						$_ =~ s/"$//;
+						eval $command;
+						$_ = "\"$_\"";
+						if( $te->{"Text$i"}->{_value} ne $_ ) {
+							$te->{"Text$i"}->{_value} = $_;
+							$region->{_changed} = 1;
+						}
+					}
+				}
+			}
+		}
+	}
+
+	$world->save;
+}
+print "DONE\n";
+
+exit;
