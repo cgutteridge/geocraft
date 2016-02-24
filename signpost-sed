@@ -31,6 +31,11 @@ BEGIN {
 	($worldname, $command) = @ARGV;
 }
 
+# check command actually compiles OK before we turn on strict.
+eval $command;
+die $@ if $@;
+
+
 use strict;
 use warnings;
 
@@ -70,14 +75,20 @@ for( my $reg_i=0;$reg_i<scalar @regions; $reg_i++ ) {
 				if( $te->{id}->{_value} eq "Sign" ) {
 					for( my $i=1; $i<=4; ++$i ) {
 						$_ = $te->{"Text$i"}->{_value};
+						print "Text$i: $_";
 						$_ =~ s/^"//;
 						$_ =~ s/"$//;
+						no strict;
 						eval $command;
+						die $@ if $@;
+						use strict;
 						$_ = "\"$_\"";
 						if( $te->{"Text$i"}->{_value} ne $_ ) {
+							print " --> $_";
 							$te->{"Text$i"}->{_value} = $_;
 							$region->{_changed} = 1;
 						}
+						print "\n";
 					}
 				}
 			}
