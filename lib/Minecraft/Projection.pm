@@ -1,69 +1,15 @@
 package Minecraft::Projection;
 
-use Geo::Coordinates::OSGB;
-use Math::Trig;
+use Geo::Transform;
 use Data::Dumper;
 use Minecraft::Context;
 use strict;
 use warnings;
 
-sub new_from_ll
-{
-	my( $class, $world, $mc_ref_x,$mc_ref_z, $lat,$long, $grid ) = @_;
-
-	my( $e, $n ) = ll_to_grid( $lat,$long, $grid );
-print "new world, base: $e,$n\n";
-	return $class->new( $world, $mc_ref_x,$mc_ref_z,  $e,$n,  $grid );
-}
-
 my $ZOOM = 18;
 my $M_PER_PIX = 0.596;
 my $TILE_W = 256;
 my $TILE_H = 256;
-sub ll_to_grid
-{
-	my( $lat, $long, $grid ) = @_;
-	#print "ll_to_grid($lat,$long)\n";
-
-	if( defined $grid && $grid eq "MERC" )
-	{
-		# inverting north/south for some reason -- seems to work
-		my $e = ($long+180)/360 * 2**$ZOOM * ($TILE_W * $M_PER_PIX);	
-		my $n = -(1 - log(tan(deg2rad($lat)) + sec(deg2rad($lat)))/pi)/2 * 2**$ZOOM * ($TILE_H * $M_PER_PIX);
-		return( $e, $n );
-	}
-	if( defined $grid && $grid eq "OSGB36" )
-	{
-		my ($x, $y) = Geo::Coordinates::OSGB::ll_to_grid($lat, $long, 'ETRS89'); # or 'WGS84'
-		my( $e,$n)= Geo::Coordinates::OSTN02::ETRS89_to_OSGB36($x, $y );
-	print "$lat,$long =$grid=> $e,$n\n";
-		return( $e, $n );
-	}
-
-	return Geo::Coordinates::OSGB::ll_to_grid( $lat,$long, $grid );
-}
-sub grid_to_ll
-{
-	my( $e, $n, $grid ) = @_;
-
-	if( defined $grid && $grid eq "MERC" )
-	{
-		my $lat = rad2deg(atan(sinh( pi - (2 * pi * -$n / (2**$ZOOM * ($TILE_H * $M_PER_PIX))) )));
-		my $long = (($e / ($TILE_W * $M_PER_PIX)) / 2**$ZOOM)*360-180;
-		return( $lat, $long );
-	}
-	if( defined $grid && $grid eq "OSGB36" )
-	{
-		my( $x,$y)= Geo::Coordinates::OSTN02::OSGB36_to_ETRS89($e, $n );
-		return Geo::Coordinates::OSGB::grid_to_ll($x, $y, 'ETRS89'); # or 'WGS84'
-	}
-
-
-	return Geo::Coordinates::OSGB::grid_to_ll( $e,$n, $grid );
-}
-
-
-
 
 sub new
 {
@@ -79,19 +25,19 @@ sub new
 
 	return $self;
 }
-	
+
 # more mc_x : more easting
 # more mc_y : less northing
 
-
-sub context 
+sub context
 {
 	my( $self, $x, $z, %opts ) = @_;
 
 	my $e = $self->{offset_e} + $x;
 	my $n = $self->{offset_n} - $z;
 
-	my($lat,$long) = grid_to_ll( $e, $n, $self->{grid} );
+	my($lat, $long) = Geo::Transform::en_to_ll( $e, $n, $self->{grid} );
+  # print "LAT $lat LON $long E $e N $n $self->{grid}\n";
 
 	my $el = 0;
 	my $feature_height = 0;
@@ -338,6 +284,5 @@ sub val
 
 	return $v;
 }
-
 
 1;

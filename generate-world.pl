@@ -3,12 +3,12 @@
 use Data::Dumper;
 use FindBin;
 use lib "$FindBin::Bin/lib";
-use Geo::Coordinates::OSGB qw(ll_to_grid grid_to_ll);
-use Geo::Coordinates::OSTN02;
+use Geo::Transform;
 use Minecraft;
 use Elevation;
 use Minecraft::Projection;
 use Minecraft::MapTiles;
+use Minecraft::Geometry;
 use Getopt::Long;
 
 my $from;
@@ -45,18 +45,18 @@ BEGIN {
 	}
 
 	if( !GetOptions (
-              	"from=s"   => \$from,      
-              	"to=s"   => \$to,      
-              	"postcode=s"   => \$postcode,      
-              	"centre=s"   => \$centre,      
-              	"size=s"   => \$size,      
-              	"blocks=s"   => \$blocks,      
-              	"colours=s"   => \$colours,      
-              	"ll"  => \$ll,
-              	"replace"  => \$replace,
-		"yshift=i", \$yshift,
-              	"help"  => \$help,
-		"elevation=s" => \$elevation_plugin,
+    "from=s"   => \$from,
+    "to=s"   => \$to,
+    "postcode=s"   => \$postcode,
+    "centre=s"   => \$centre,
+    "size=s"   => \$size,
+    "blocks=s"   => \$blocks,
+    "colours=s"   => \$colours,
+    "ll"  => \$ll,
+    "replace"  => \$replace,
+    "yshift=i", \$yshift,
+    "help"  => \$help,
+    "elevation=s" => \$elevation_plugin,
 	)) {
 		print STDERR ("Error in command line arguments\n");
 		help();
@@ -124,12 +124,14 @@ if( defined $postcode )
 	$ll = 0;
 }
 
+my $bbox;
+
 sub mya
 {
 	return @_;
 }
 
-my( $e1,$e2,$n1,$n2 );
+my( $e1, $e2, $n1, $n2 );
 my( $ANCHOR_E, $ANCHOR_N );
 if( defined $centre )
 {
@@ -138,7 +140,7 @@ if( defined $centre )
 	my( $e,$n );
 	if( $ll ) 
 	{
-		($e,$n) = ll_to_en( $x,$y);
+		($e,$n) = Geo::Transform::ll_to_en($x, $y, "EPSG4326");
 	}
 	else
 	{
@@ -173,15 +175,19 @@ elsif( defined $from && defined $to )
 	my( $e2,$n2 );
 	if( $ll ) 
 	{
-		($e1,$n1)=ll_to_en( $x1,$y1);
-		($e2,$n2)=ll_to_en( $x2,$y2);
+		if( $x1>$x2 ) { ($x2,$x1)=($x1,$x2); }
+  	if( $y1>$y2 ) { ($y2,$y1)=($y1,$y2); }
+		$bbox = join(",", $y2, $x2, $y1, $x1); # NESW
+
+		($e1,$n1)=Geo::Transform::ll_to_en($x1, $y1, "EPSG4326");
+		($e2,$n2)=Geo::Transform::ll_to_en($x2, $y2, "EPSG4326");
 	}
 	else
 	{
 		($e1,$n1)=($x1,$y1);
 		($e2,$n2)=($x2,$y2);
 	}
-	if( $e1>$e2 ) { ($e2,$e1)=($e1,$e2); }	
+	if( $e1>$e2 ) { ($e2,$e1)=($e1,$e2); }
 	if( $n1>$n2 ) { ($n2,$n1)=($n1,$n2); }	
 	
 	$ANCHOR_E = int($e1);	
@@ -201,6 +207,7 @@ else
 if( !-d "$FindBin::Bin/saves" ) { mkdir( "$FindBin::Bin/saves" ); }
 if( !-d "$FindBin::Bin/var" ) { mkdir( "$FindBin::Bin/var" ); }
 if( !-d "$FindBin::Bin/var/tiles" ) { mkdir( "$FindBin::Bin/var/tiles" ); }
+if( !-d "$FindBin::Bin/var/geometry" ) { mkdir( "$FindBin::Bin/var/geometry" ); }
 if( !-d "$FindBin::Bin/var/tmp" ) { mkdir( "$FindBin::Bin/var/tmp" ); }
 if( !-d "$FindBin::Bin/var/lidar" ) { mkdir( "$FindBin::Bin/var/lidar" ); }
 if( !-d "$FindBin::Bin/var/lidar/DSM" ) { mkdir( "$FindBin::Bin/var/lidar/DSM" ); }
@@ -240,7 +247,6 @@ my $world = $mc->world( $worldname, init_chunk=>sub {
 	}
 });
 
-
 $OPTS->{MAPTILES} = new Minecraft::MapTiles(
 	zoom=>19,
 	spread=>3,
@@ -252,6 +258,14 @@ $OPTS->{MAPTILES} = new Minecraft::MapTiles(
 	map=>$Minecraft::Config::COLOURS,
 );
 
+if (defined $bbox) {
+  $OPTS->{GEOMETRY} = new Minecraft::Geometry(
+    dir=>"$FindBin::Bin/var/geometry",
+    url=>"http://data.osmbuildings.org/0.2/geocraft2016-02/area.json",
+    bbox=>$bbox,
+  );
+}
+
 $OPTS->{BLOCKS} = $Minecraft::Config::BLOCKS;
 $OPTS->{EXTEND_DOWNWARDS} = 9;
 $OPTS->{TOP_OF_WORLD} = 254;
@@ -259,12 +273,12 @@ $OPTS->{YSHIFT} = $yshift;
 
 $elevation_plugin = "UKDEFRA" if( !defined $elevation_plugin );
 eval "use Elevation::$elevation_plugin;";
-$OPTS->{ELEVATION} = "Elevation::$elevation_plugin"->new( 
+$OPTS->{ELEVATION} = "Elevation::$elevation_plugin"->new(
 	"$FindBin::Bin/var/lidar", 
 	"$FindBin::Bin/var/tmp", 
 );
 
-my $p = Minecraft::Projection->new( $world, 0,0, $ANCHOR_E,$ANCHOR_N, "OSGB36" );
+my $p = Minecraft::Projection->new( $world, 0, 0, $ANCHOR_E,$ANCHOR_N, "EPSG4326" );
 print "Projection created. MC0,0 = ${ANCHOR_E}E ${ANCHOR_N}N\n"; 
 
 $p->render( %$OPTS );
@@ -284,13 +298,4 @@ sub postcode_to_en
     	my $e = $pdata->{'http://data.ordnancesurvey.co.uk/ontology/spatialrelations/easting'}->[0]->{value};
     	my $n = $pdata->{'http://data.ordnancesurvey.co.uk/ontology/spatialrelations/northing'}->[0]->{value};
 	return( $e,$n );
-}
-
-
-sub ll_to_en
-{
-	my( $lat, $long ) = @_;
-
-	my ($x, $y) = Geo::Coordinates::OSGB::ll_to_grid($lat, $long, 'ETRS89'); # or 'WGS84'
-	return Geo::Coordinates::OSTN02::ETRS89_to_OSGB36($x, $y );
 }

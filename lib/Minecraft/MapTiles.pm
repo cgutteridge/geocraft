@@ -11,12 +11,11 @@ sub new
 	my( $class, %opts ) = @_;
 
 	my $self = bless { %opts },$class;
-	$self->{tiles} = {};	
-
-	
+	$self->{tiles} = {};
 
 	return $self;
 }
+
 #	zoom=>19,
 #	spread=>4,
 #	width=>256,
@@ -26,10 +25,11 @@ sub new
 
 sub getTileNumber 
 {
-	my ($lat,$lon,$zoom) = @_;
-	my $xtile = ($lon+180)/360 * 2**$zoom ;
-	my $ytile = (1 - log(tan(deg2rad($lat)) + sec(deg2rad($lat)))/pi)/2 * 2**$zoom ;
-	return (int($xtile), int($ytile), $xtile-int($xtile), $ytile-int($ytile));
+	my ($lat, $lon, $zoom) = @_;
+	my $world_size = 2**($zoom);
+  my $ytile = (0.5 - (log(tan(pi/4 + pi/2 * $lat / 180)) / pi) / 2) * $world_size,
+  my $xtile = ($lon/360 + 0.5) * $world_size;
+  return (int($xtile), int($ytile), $xtile-int($xtile), $ytile-int($ytile));
 }
 
 sub tile
@@ -43,15 +43,13 @@ sub tile
 		if( !-e "$self->{dir}/$fn" )
 		{
 			my $cmd = "curl -s '".$self->{url}.$self->{zoom}."/$xtile/$ytile.png' > ".$self->{dir}."/$fn";
-			#print "$cmd\n";
+#			print "$cmd\n";
 			`$cmd`;
 		}
 		$self->{tiles}->{$fn} = new LitePNG( $self->{dir}."/$fn" );
 	}
 	return $self->{tiles}->{$fn};
 }
-
-
 
 sub col_on_tile
 {
@@ -78,9 +76,9 @@ sub byteToPercent
 
 sub spread_colours
 {
-	my( $self,$lat,$long ) = @_;
+	my( $self, $lat, $long ) = @_;
 
-	my( $xtile,$ytile, $xr,$yr ) = getTileNumber( $lat,$long, $self->{zoom} );
+	my( $xtile, $ytile, $xr, $yr ) = getTileNumber( $lat, $long, $self->{zoom} );
 	my $tile = $self->tile( $self->{zoom}, $xtile, $ytile );
 
 	my $pixel_x = POSIX::floor($self->{width}*$xr);
@@ -104,7 +102,7 @@ sub spread_colours
 sub block_at
 {
 	my( $self, $lat, $long ) = @_;
-	
+
 	my $scores = {};
 	my $best = "FAIL";
 	my $max = 0;
