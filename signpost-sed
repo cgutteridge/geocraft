@@ -5,6 +5,7 @@ use FindBin;
 use lib "$FindBin::Bin/lib";
 use Minecraft;
 use Getopt::Long;
+use JSON::PP;
 
 my $worldname;
 my $command;
@@ -69,13 +70,19 @@ for( my $reg_i=0;$reg_i<scalar @regions; $reg_i++ ) {
 			foreach my $te ( @{ $chunk->{Level}->{TileEntities}->{_value} } ) {
 				if( $te->{id}->{_value} eq "Sign" ) {
 					for( my $i=1; $i<=4; ++$i ) {
-						$_ = $te->{"Text$i"}->{_value};
+						my $v = $te->{"Text$i"}->{_value};
+						my $j = decode_json( $v );
+						my $o = $j->{text};
+						$_ = $o;
 						$_ =~ s/^"//;
 						$_ =~ s/"$//;
 						eval $command;
 						$_ = "\"$_\"";
-						if( $te->{"Text$i"}->{_value} ne $_ ) {
-							$te->{"Text$i"}->{_value} = $_;
+						if( $o ne $_ ) {
+							print "$o -> $_\n";
+							$_ =~ s/"/\\"/g;
+							$te->{"Text$i"}->{_value} = "{\"text\":\"$_\"}";
+							print "$v => ".$te->{"Text$i"}->{_value}."\n";
 							$region->{_changed} = 1;
 						}
 					}
@@ -84,7 +91,7 @@ for( my $reg_i=0;$reg_i<scalar @regions; $reg_i++ ) {
 		}
 	}
 
-	$world->save;
+#	$world->save;
 }
 print "DONE\n";
 
