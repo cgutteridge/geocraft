@@ -88,6 +88,8 @@ sub context
 {
 	my( $self, $x, $z, %opts ) = @_;
 
+	my( $transformed_x, $transformed_z ) = ( $x,$z );
+
 	my $e = $self->{offset_e} + $x;
 	my $n = $self->{offset_n} - $z;
 

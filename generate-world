@@ -23,6 +23,8 @@ my $replace;
 my $blocks;
 my $colours;
 my $elevation_plugin;
+my $rotate;
+my $scale;
 
 BEGIN { 
 	sub load_config
@@ -41,7 +43,13 @@ BEGIN {
 	{
 		print "$0 [--saves <mc-saves-dir>] [--ll] --from <x>,<y> --to <x>,<y> <world-name>\n";
 		print "$0 [--saves <mc-saves-dir>] [--ll] [--centre <x>,<y> | --postcode <code> ] --size <n>|<w>,<h> <world-name>\n";
-		print "Additional options: --replace --yshift <n> --blocks <file> --colours <file> --elevation <plugin>\n";
+		print "Additional options: \n";
+		print "  --replace --yshift <n>\n";
+		print "  --blocks <file>\n";
+		print "  --colours <file>\n";
+		print "  --elevation <plugin>\n";
+		print "  --rotation <degrees>\n";
+		print "  --scale <factor>\n";
 	}
 
 	if( !GetOptions (
@@ -55,6 +63,8 @@ BEGIN {
               	"ll"  => \$ll,
               	"replace"  => \$replace,
 		"yshift=i", \$yshift,
+		"scale=i", \$scale,
+		"factor=i", \$factor,
               	"help"  => \$help,
 		"elevation=s" => \$elevation_plugin,
 	)) {
@@ -256,6 +266,8 @@ $OPTS->{BLOCKS} = $Minecraft::Config::BLOCKS;
 $OPTS->{EXTEND_DOWNWARDS} = 9;
 $OPTS->{TOP_OF_WORLD} = 254;
 $OPTS->{YSHIFT} = $yshift;
+$OPTS->{SCALE} = $scale;
+$OPTS->{ROTATE} = $rotate;
 
 $elevation_plugin = "UKDEFRA" if( !defined $elevation_plugin );
 eval "use Elevation::$elevation_plugin;";
@@ -264,7 +276,8 @@ $OPTS->{ELEVATION} = "Elevation::$elevation_plugin"->new(
 	"$FindBin::Bin/var/tmp", 
 );
 
-my $p = Minecraft::Projection->new( $world, 0,0, $ANCHOR_E,$ANCHOR_N, "OSGB36" );
+my $grid = "OSGB36";
+my $p = Minecraft::Projection->new( $world, 0,0, $ANCHOR_E,$ANCHOR_N, $grid );
 print "Projection created. MC0,0 = ${ANCHOR_E}E ${ANCHOR_N}N\n"; 
 
 $p->render( %$OPTS );

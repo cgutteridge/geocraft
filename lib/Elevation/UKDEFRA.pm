@@ -82,6 +82,7 @@ sub download
 		return; 
 	}
 	my $json_text = $self->get_url( $url );
+print "* $url\n";
 	my $cat_record = decode_json( $json_text );
 
 	my $target = {};
