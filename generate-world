@@ -64,8 +64,8 @@ BEGIN {
               	"ll"  => \$ll,
               	"replace"  => \$replace,
 		"yshift=i", \$yshift,
-		"scale=i", \$scale,
-		"factor=i", \$factor,
+		"scale=f", \$scale,
+		"rotate=f", \$rotate,
               	"help"  => \$help,
 		"elevation=s" => \$elevation_plugin,
 	)) {
