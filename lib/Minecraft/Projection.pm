@@ -89,9 +89,13 @@ sub context
 	my( $self, $x, $z, %opts ) = @_;
 
 	my( $transformed_x, $transformed_z ) = ( $x,$z );
-
-	my $e = $self->{offset_e} + $x;
-	my $n = $self->{offset_n} - $z;
+	if( $opts{SCALE} ) {
+		$transformed_x = $transformed_x / $opts{SCALE};
+		$transformed_z = $transformed_z / $opts{SCALE};
+	}
+	
+	my $e = $self->{offset_e} + $transformed_x;
+	my $n = $self->{offset_n} - $transformed_z;
 
 	my($lat,$long) = grid_to_ll( $e, $n, $self->{grid} );
 
@@ -102,6 +106,14 @@ sub context
 	{	
 		my $dsm = $opts{ELEVATION}->ll( "DSM", $lat, $long );
 		my $dtm = $opts{ELEVATION}->ll( "DTM", $lat, $long );
+		if( defined $dsm && defined $opts{SCALE} )
+		{
+			$dsm = $dsm * $opts{SCALE};
+		}
+		if( defined $dtm && defined $opts{SCALE} )
+		{
+			$dtm = $dtm * $opts{SCALE};
+		}
 		$el = $dtm;
 		$el = $dsm if( !defined $el );
 		if( defined $dsm && defined $dtm )
@@ -154,7 +166,6 @@ sub render
 {
 	my( $self, %opts ) = @_;
 
-
 	die "missing coords EAST1"  if( !defined $opts{EAST1} );
 	die "missing coords EAST2"  if( !defined $opts{EAST2} );
 	die "missing coords NORTH1" if( !defined $opts{NORTH1} );
@@ -165,6 +176,15 @@ sub render
 
 	if( $EAST < $WEST ) { ( $EAST,$WEST ) = ( $WEST,$EAST ); }
 	if( $NORTH < $SOUTH ) { ( $NORTH,$SOUTH ) = ( $SOUTH,$NORTH ); }
+
+	if( $opts{ELEVATION} && $opts{SCALE}>1 )
+	{	
+		my($lat,$long) = grid_to_ll( $self->{offset_e}, $self->{offset_n}, $self->{grid});
+		my $dtm = $opts{ELEVATION}->ll( "DTM", $lat, $long );
+		$opts{YSHIFT} -= $dtm * ( $opts{SCALE}-1 );
+	}
+
+
 
 	my $SEALEVEL = 2;
 	if( $opts{EXTEND_DOWNWARDS} )

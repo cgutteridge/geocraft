@@ -44,11 +44,12 @@ BEGIN {
 		print "$0 [--saves <mc-saves-dir>] [--ll] --from <x>,<y> --to <x>,<y> <world-name>\n";
 		print "$0 [--saves <mc-saves-dir>] [--ll] [--centre <x>,<y> | --postcode <code> ] --size <n>|<w>,<h> <world-name>\n";
 		print "Additional options: \n";
-		print "  --replace --yshift <n>\n";
+		print "  --replace\n";
+		print "  --yshift <n>\n";
 		print "  --blocks <file>\n";
 		print "  --colours <file>\n";
 		print "  --elevation <plugin>\n";
-		print "  --rotation <degrees>\n";
+#		print "  --rotation <degrees>\n";
 		print "  --scale <factor>\n";
 	}
 
