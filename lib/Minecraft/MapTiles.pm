@@ -38,15 +38,30 @@ sub tile
 
 	my $fn = $zoom."_${xtile}_${ytile}.png";
 
-	if( !defined $self->{tiles}->{$fn} )
+	my $attempts = 0;
+	while( !defined $self->{tiles}->{$fn} )
 	{
-		if( !-e "$self->{dir}/$fn" )
+		my $url = $self->{url}.$self->{zoom}."/$xtile/$ytile.png";
+		my $file = $self->{dir}."/$fn";
+		if( !-e $file )
 		{
-			my $cmd = "curl -s '".$self->{url}.$self->{zoom}."/$xtile/$ytile.png' > ".$self->{dir}."/$fn";
+			my $cmd = "curl -s '$url' > '$file'";
 			#print "$cmd\n";
 			`$cmd`;
 		}
-		$self->{tiles}->{$fn} = new LitePNG( $self->{dir}."/$fn" );
+		$self->{tiles}->{$fn} = new LitePNG( $file );
+		if( !$self->{tiles}->{$fn} ) 
+		{
+			unlink( $file );
+			$attempts++;
+			if( $attempts > 16 ) 
+			{
+				die "Failed lots of times trying to load $url. Giving up.";
+			}
+			print "Failed to read $url (attempt $attempts)\n";
+			sleep(2);
+			print "OK, let's try that again...\n";
+		}
 	}
 	return $self->{tiles}->{$fn};
 }

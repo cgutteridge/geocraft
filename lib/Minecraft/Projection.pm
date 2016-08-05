@@ -177,7 +177,7 @@ sub render
 	if( $EAST < $WEST ) { ( $EAST,$WEST ) = ( $WEST,$EAST ); }
 	if( $NORTH < $SOUTH ) { ( $NORTH,$SOUTH ) = ( $SOUTH,$NORTH ); }
 
-	if( $opts{ELEVATION} && $opts{SCALE}>1 )
+	if( $opts{ELEVATION} && defined $opts{SCALE} && $opts{SCALE}>1 )
 	{	
 		my($lat,$long) = grid_to_ll( $self->{offset_e}, $self->{offset_n}, $self->{grid});
 		my $dtm = $opts{ELEVATION}->ll( "DTM", $lat, $long );
