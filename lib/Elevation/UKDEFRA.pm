@@ -72,7 +72,7 @@ sub download
 {
 	my( $self, $file_e, $file_n ) = @_;
 
-	print "($file_e)($file_n)\n";
+	#print "($file_e)($file_n)\n";
 	my $url = sprintf( 
 		"https://raw.githubusercontent.com/cgutteridge/uklidar/master/catalog/%04d-%04d.json",
 		POSIX::floor( $file_e/10000 )*10,
@@ -247,7 +247,7 @@ sub cell_elevation
 	if( !defined $fn ) 
 	{
 		# attempt to download lidar
-		print "no elevation for $file_e,$file_n\n"; 
+		# print "no elevation for $file_e,$file_n\n"; 
 		$self->download( $file_e, $file_n );
 		$fn = $self->{files}->{$model}->{ $file_n }->{ $file_e };
 		if( !defined $fn ) 

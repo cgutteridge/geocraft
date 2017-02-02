@@ -36,7 +36,7 @@ sub ll_to_grid
 	{
 		my ($x, $y) = Geo::Coordinates::OSGB::ll_to_grid($lat, $long, 'ETRS89'); # or 'WGS84'
 		my( $e,$n)= Geo::Coordinates::OSTN02::ETRS89_to_OSGB36($x, $y );
-	print "$lat,$long =$grid=> $e,$n\n";
+	#print "$lat,$long =$grid=> $e,$n\n";
 		return( $e, $n );
 	}
 

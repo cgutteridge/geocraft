@@ -12,6 +12,7 @@ sub new
 
 	my $self = bless { %opts },$class;
 	$self->{tiles} = {};	
+	$self->{tiles} = {};	
 
 	
 

@@ -41,10 +41,15 @@ sub c
 
 	return ($rx,$y,$rz);
 }
-sub get_block
+sub has_block
 {
 	my( $self,   $x,$y,$z ) = @_;
 
+	return $self->block_region( $x,$y,$z )->has_block( c($x,$y,$z) );
+}
+sub get_block
+{
+	my( $self,   $x,$y,$z ) = @_;
 
 	return $self->block_region( $x,$y,$z )->get_block( c($x,$y,$z) );
 }

@@ -6,6 +6,7 @@ use Minecraft::NBT;
 use Minecraft::NBT::Tag;
 use Minecraft::Region;
 use Minecraft::World;
+use Minecraft::BlockTypes;
 
 sub new
 {

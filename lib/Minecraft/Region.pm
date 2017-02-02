@@ -150,6 +150,14 @@ sub block_offset
 	my $offset = 16*16*$local_y + 16*$local_z + $local_x;
 	return $offset;
 }
+sub has_block
+{
+	my($self, $rel_x,$y,$rel_z ) = @_;
+
+	my $section = $self->block_section($rel_x,$y,$rel_z);
+	return 0 if( !$section );
+	return 1;
+}
 sub get_block
 {
 	my($self, $rel_x,$y,$rel_z ) = @_;

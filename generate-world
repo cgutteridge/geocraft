@@ -25,6 +25,8 @@ my $colours;
 my $elevation_plugin;
 my $rotate;
 my $scale;
+my $mapzoom;
+my $tiles;
 
 BEGIN { 
 	sub load_config
@@ -50,7 +52,9 @@ BEGIN {
 		print "  --colours <file>\n";
 		print "  --elevation <plugin>\n";
 #		print "  --rotation <degrees>\n";
-		print "  --scale <factor>\n";
+		print "  --scale <factor> // 2.0 means block is 50cm. 0.5 means MC block is 2m\n";
+		print "  --mapzoom <value>\n";
+		print "  --tiles <url pattern>   // the map tile pattern\n";
 	}
 
 	if( !GetOptions (
@@ -67,7 +71,9 @@ BEGIN {
 		"scale=f", \$scale,
 		"rotate=f", \$rotate,
               	"help"  => \$help,
+              	"mapzoom=i"  => \$mapzoom,
 		"elevation=s" => \$elevation_plugin,
+		"tile=s" => \$tiles,
 	)) {
 		print STDERR ("Error in command line arguments\n");
 		help();
@@ -269,6 +275,8 @@ $OPTS->{TOP_OF_WORLD} = 254;
 $OPTS->{YSHIFT} = $yshift;
 $OPTS->{SCALE} = $scale;
 $OPTS->{ROTATE} = $rotate;
+$OPTS->{TILE_PATTERN} = $tiles;
+$OPTS->{MAP_ZOOM} = $mapzoom;
 
 $elevation_plugin = "UKDEFRA" if( !defined $elevation_plugin );
 eval "use Elevation::$elevation_plugin;";
