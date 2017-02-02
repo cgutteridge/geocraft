@@ -1,0 +1,111 @@
+#!/usr/bin/perl 
+
+use Data::Dumper;
+use List::Util qw/shuffle/;
+use FindBin;
+use lib "$FindBin::Bin/lib";
+use Minecraft;
+use Getopt::Long;
+
+use strict;
+use warnings;
+
+`rm -rf saves/aged`;
+`cp -a saves/VentnorModel saves/aged`;
+
+my $x1 = 64*16;
+my $z1 = 51*16;
+
+my $x2 = 100*16;
+my $z2 = 61*16;
+
+# layers to exfoliate
+my $y1 = 50;
+my $y2 = 255;
+
+my $SAND_CHANCE=0.8;
+my $SAND_DEPTH=10;
+my $GRASS_CHANCE = 0.1;
+
+my $worldname = 'aged';
+my $mc = new Minecraft( "$FindBin::Bin/saves" );
+my $world = $mc->world( $worldname );
+
+print "Setting World Options\n";
+my $nbt = Minecraft::NBT->from_gzip_file( "$FindBin::Bin/saves/$worldname/level.dat" );
+$nbt->{Data}->{LevelName}->{_value} .= " (AGED)";
+$nbt->{Data}->{LastPlayed}->{_value} = time()."000";
+$nbt->to_gzip_file( "$FindBin::Bin/saves/$worldname/level.dat" );
+
+my $top = {};
+for(my $z=$z1;$z<=$z2;++$z ) {
+  print "($z)";
+  for(my $x=$x1;$x<=$x2;++$x ) {
+    my $y;
+    for( $y=1; $y<255 && $world->has_block( $x,$y,$z ); ++$y ) {
+      my $type = Minecraft::blockType( $world->get_block( $x,$y,$z ) );
+      # don't mess with air, liquid, natural and crafted
+      if( $type eq "dirt" ) { $world->set_block( $x,$y,$z, 3 ); }
+      if( $type eq "fragile" ) { $world->set_block( $x,$y,$z, 0 ); }
+      if( $type eq "plant" ) { $world->set_block( $x,$y,$z, 0 ); }
+    }
+    $top->{$z}->{$x}= $y;
+  }
+}
+
+my @layer = (4,4,13,13,13,3,3,3,3,3);
+for(my $i=0;$i<$SAND_DEPTH;++$i) {
+  for(my $z=$z1;$z<=$z2;++$z ) {
+    print "($z):";
+    for(my $x=$x1;$x<=$x2;++$x ) {
+      print ".";
+      next if( rand(1) > $SAND_CHANCE );
+      my $by = $top->{$z}->{$x};
+      my $bx = $x;
+      my $bz = $z;
+      my $top_type = Minecraft::blockType( $world->get_block( $bx,$by,$bz ) );
+      next if( $top_type ne "liquid" && $top_type ne "air" );
+      # ok there's at least on air block
+      LAYER: while($bz>0) {
+        # attempt to move down 
+        my @moves = shuffle( [-1,0],[1,0],[0,1],[0,-1] );
+        unshift @moves, [0,0];
+        while( @moves ) {
+          my $m = shift @moves;
+          my $type1 = Minecraft::blockType( $world->get_block( $bx+$m->[0],$by,$bz+$m->[1]) );
+          my $type2 = Minecraft::blockType( $world->get_block( $bx+$m->[0],$by-1,$bz+$m->[1]) );
+          if( ($type1 eq "air" || $type1 eq "liquid") && ($type2 eq "air" || $type2 eq "liquid") ) {
+            $bx += $m->[0];
+            $by -= 1;
+            $bz += $m->[1];
+            next LAYER;
+          }
+        }
+        # no moves left. break loop and place block
+        last;
+      }
+      $world->set_block( $bx,$by,$bz , $layer[$i] ); #dirt
+    }
+  }
+  print "\n";
+}
+
+# regrass
+for(my $z=$z1;$z<=$z2;++$z ) {
+  print "($z)";
+  for(my $x=$x1;$x<=$x2;++$x ) {
+    my $y;
+    for( $y=255; $y>0 && Minecraft::blockType($world->get_block( $x,$y,$z )) eq "air"; $y-- ) { }
+    my $type = Minecraft::blockType( $world->get_block( $x,$y,$z ) );
+    if( $type eq "dirt" ) { 
+      $world->set_block( $x,$y,$z, 2 ); 
+      if( rand(1) < $GRASS_CHANCE ) {
+        $world->set_block( $x,$y+1,$z, 31.01 );
+      }
+    }
+  }
+}
+
+$world->save();
+exit;
+
