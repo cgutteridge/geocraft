@@ -279,7 +279,10 @@ $OPTS->{TILE_PATTERN} = $tiles;
 $OPTS->{MAP_ZOOM} = $mapzoom;
 
 $elevation_plugin = "UKDEFRA" if( !defined $elevation_plugin );
-eval "use Elevation::$elevation_plugin;";
+my $rc = eval "use Elevation::$elevation_plugin; 1;";
+if( !$rc ) {
+	die "Error in loading elevation; $@";
+}
 $OPTS->{ELEVATION} = "Elevation::$elevation_plugin"->new( 
 	"$FindBin::Bin/var/lidar", 
 	"$FindBin::Bin/var/tmp", 

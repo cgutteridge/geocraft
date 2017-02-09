@@ -184,8 +184,6 @@ sub render
 		$opts{YSHIFT} -= $dtm * ( $opts{SCALE}-1 );
 	}
 
-
-
 	my $SEALEVEL = 2;
 	if( $opts{EXTEND_DOWNWARDS} )
 	{	
@@ -209,137 +207,175 @@ sub render
 		}	
 	}
 
-	my $block_count = 0;
-	for( my $z=$SOUTH; $z<=$NORTH; ++$z ) 
+	my $SQUARE_SIZE = 512;
+	my @squares = ();
+	for( my $z=$SOUTH-($SOUTH % $SQUARE_SIZE); $z<$NORTH; $z+=$SQUARE_SIZE ) 
 	{
-		my $ratio = ($z-$SOUTH)/($NORTH-$SOUTH+1);
-		my $spent = time()-$self->{start};
-		
-		print sprintf( "ROW: %d..%dE,%dN", $WEST,$EAST,$z );
-		if( $ratio > 0 && $ratio < 1 )
+		for( my $x=$WEST-($WEST % $SQUARE_SIZE); $x<$EAST; $x+=$SQUARE_SIZE )
 		{
-			my $remaining = $spent / $ratio * (1-$ratio);
-			print sprintf( ".. %d%% %s remaining", int(100*$ratio), duration( $remaining ) );
+			push @squares, [$x,$z];
 		}
+	}
+
+	my $old_fh = select(STDOUT);
+	$| = 1;
+	select($old_fh); 
+			
+	my $SQ_COUNT = scalar @squares;
+	while( scalar @squares ) {
+		my $start_t = time();
+		my $sq = shift @squares;
+		print "Doing: ".($SQ_COUNT-scalar @squares)." of $SQ_COUNT areas of ${SQUARE_SIZE}x${SQUARE_SIZE} at ".$sq->[0].",".$sq->[1];
+		for( my $z=$sq->[1]; $z<$sq->[1]+$SQUARE_SIZE; ++$z ) {
+			for( my $x=$sq->[0]; $x<$sq->[0]+$SQUARE_SIZE; ++$x ) {
+				next if( $x<$WEST || $x>$EAST || $z>$NORTH || $z<$SOUTH );
+				$self->render_xz( $x,$z, $SEALEVEL, $BCONFIG, %opts );
+			}
+			print ".";
+		}		
+		print " (".(time()-$start_t)." seconds)";
 		print "\n";
-		for( my $x=$WEST; $x<=$EAST; ++$x )
+		$self->{world}->save(); 
+	}
+
+#	for( my $z=$SOUTH; $z<=$NORTH; ++$z ) 
+#	{
+#		my $ratio = ($z-$SOUTH)/($NORTH-$SOUTH+1);
+#		my $spent = time()-$self->{start};
+#		
+#		print sprintf( "ROW: %d..%dE,%dN", $WEST,$EAST,$z );
+#		if( $ratio > 0 && $ratio < 1 )
+#		{
+#			my $remaining = $spent / $ratio * (1-$ratio);
+#			print sprintf( ".. %d%% %s remaining", int(100*$ratio), duration( $remaining ) );
+#		}
+#		print "\n";
+#		for( my $x=$WEST; $x<=$EAST; ++$x )
+#		{
+#			$self->render_xz( $x,$z, $SEALEVEL, $BCONFIG, %opts );
+#			$block_count++;
+#			if( $block_count % (256*256) == 0 ) { $self->{world}->save(); }
+#		}
+#	}			
+#	$self->{world}->save(); 
+}
+
+sub render_xz
+{
+	my( $self, $x,$z, $SEALEVEL, $BCONFIG, %opts ) = @_;
+
+	my $context = $self->context( $x, $z, %opts );
+	my $block = $context->{block};
+	my $el = $context->{elevation};
+	my $feature_height = $context->{feature_height};
+
+	# we now have $block, $el, $SEALEVEL and $feature_height
+	# that's enough to work out what to place at this location
+
+	# config options based on value of block
+
+	my $bc = $BCONFIG->{$block};
+	$bc = $BCONFIG->{DEFAULT} if !defined $bc;
+	if( !defined $bc) { die "No DEFAULT block"; }
+
+	if( $bc->{look_around} ) {
+		my $dirmap = {
+			north=>{ x=>0, z=>-1 },
+			south=>{ x=>0, z=>1 },
+			west=>{ x=>-1, z=>0 },
+			east=>{ x=>1, z=>0 },
+		};
+		foreach my $dir ( qw/ north south east west / ) { 
+			$context->{$dir} = $self->context( $x+$dirmap->{$dir}->{x}, $z+$dirmap->{$dir}->{z}, %opts );
+		}
+	}
+
+
+	# block : blocktype [ block ID or "DEFAULT" ]
+	# down_block: blocktype [ block ID or "DEFAULT" ]
+	# up_block: blocktype [ block ID or "DEFAULT" ]
+	# bottom_block: blocktype [ block ID or "DEFAULT" ]
+	# under_block: blocktype [ block ID or "DEFAULT" ]
+	# top_block: blocktype [ block ID or "DEFAULT" ]
+	# over_block: blocktype [ block ID or "DEFAULT" ]
+	# feature_filter - filter features of this height or less
+	# feature_min_height - force this min feature height even if lidar is lower
+
+	my $blocks = {};
+	$blocks->{0} = $bc->val( $context, "block", $block );
+
+	my $bottom=0;
+	if( defined $opts{EXTEND_DOWNWARDS} )
+	{
+		for( my $i=1; $i<=$opts{EXTEND_DOWNWARDS}; $i++ )
 		{
-			my $context = $self->context( $x, $z, %opts );
-			my $block = $context->{block};
-			my $el = $context->{elevation};
-			my $feature_height = $context->{feature_height};
-		
-			# we now have $block, $el, $SEALEVEL and $feature_height
-			# that's enough to work out what to place at this location
+			$blocks->{-$i} = $bc->val( $context, "down_block", $blocks->{0} );
+		}
+		$bottom-=$opts{EXTEND_DOWNWARDS};
+	}
 
-			# config options based on value of block
+	my $top = 0;
+	my $fmh = $bc->val( $context, "feature_min_height" );
+	if( defined $fmh && $fmh>$feature_height )
+	{
+		$feature_height = $fmh;
+	}	
+	my $ff = $bc->val( $context, "feature_filter" );
+	if( !defined $ff || $feature_height > $ff )
+	{
+		for( my $i=1; $i<= $feature_height; ++$i )
+		{
+			$context->{y_offset} = $i;
+			$blocks->{$i} = $bc->val( $context, "up_block", $blocks->{0} );
+		}
+		$top+=$feature_height;
+	}
 
-			my $bc = $BCONFIG->{$block};
-			$bc = $BCONFIG->{DEFAULT} if !defined $bc;
-			if( !defined $bc) { die "No DEFAULT block"; }
+	my $v;
 
-			if( $bc->{look_around} ) {
-				my $dirmap = {
-					north=>{ x=>0, z=>-1 },
-					south=>{ x=>0, z=>1 },
-					west=>{ x=>-1, z=>0 },
-					east=>{ x=>1, z=>0 },
-				};
-				foreach my $dir ( qw/ north south east west / ) { 
-					$context->{$dir} = $self->context( $x+$dirmap->{$dir}->{x}, $z+$dirmap->{$dir}->{z}, %opts );
-				}
-			}
+	$context->{y_offset} = $bottom;
+	$v = $bc->val( $context,"bottom_block"); 
+	if( defined $v ) { $blocks->{$bottom} = $v; }
 
+	$context->{y_offset} = $bottom-1;
+	$v = $bc->val( $context,"under_block"); 
+	if( defined $v ) { $blocks->{$bottom-1} = $v; }
 
-			# block : blocktype [ block ID or "DEFAULT" ]
-			# down_block: blocktype [ block ID or "DEFAULT" ]
-			# up_block: blocktype [ block ID or "DEFAULT" ]
-			# bottom_block: blocktype [ block ID or "DEFAULT" ]
-			# under_block: blocktype [ block ID or "DEFAULT" ]
-			# top_block: blocktype [ block ID or "DEFAULT" ]
-			# over_block: blocktype [ block ID or "DEFAULT" ]
-			# feature_filter - filter features of this height or less
-			# feature_min_height - force this min feature height even if lidar is lower
+	$context->{y_offset} = $top;
+	$v = $bc->val( $context,"top_block"); 
+	if( defined $v ) { $blocks->{$top} = $v; }
 
-			my $blocks = {};
-			$blocks->{0} = $bc->val( $context, "block", $block );
+	$context->{y_offset} = $top+1;
+	$v = $bc->val( $context,"over_block"); 
+	if( defined $v ) { $blocks->{$top+1} = $v; }
 
-			my $bottom=0;
-			if( defined $opts{EXTEND_DOWNWARDS} )
+	if( $opts{FLOOD} )
+	{
+		for( my $i=1; $i<=$opts{FLOOD}; $i++ )
+		{
+			$context->{y_offset} = $i; # not currently used
+			my $block_el = $el+$i;
+			if( $el+$i <= $opts{FLOOD} && (!defined $blocks->{$i} || $blocks->{$i}==0 ))
 			{
-				for( my $i=1; $i<=$opts{EXTEND_DOWNWARDS}; $i++ )
-				{
-					$blocks->{-$i} = $bc->val( $context, "down_block", $blocks->{0} );
-				}
-				$bottom-=$opts{EXTEND_DOWNWARDS};
+				$blocks->{$i} = 9; # water, obvs.
 			}
-
-			my $top = 0;
-			my $fmh = $bc->val( $context, "feature_min_height" );
-			if( defined $fmh && $fmh>$feature_height )
-			{
-				$feature_height = $fmh;
-			}	
-			my $ff = $bc->val( $context, "feature_filter" );
-			if( !defined $ff || $feature_height > $ff )
-			{
-				for( my $i=1; $i<= $feature_height; ++$i )
-				{
-					$context->{y_offset} = $i;
-					$blocks->{$i} = $bc->val( $context, "up_block", $blocks->{0} );
-				}
-				$top+=$feature_height;
-			}
-
-			my $v;
-
-			$context->{y_offset} = $bottom;
-			$v = $bc->val( $context,"bottom_block"); 
-			if( defined $v ) { $blocks->{$bottom} = $v; }
-
-			$context->{y_offset} = $bottom-1;
-			$v = $bc->val( $context,"under_block"); 
-			if( defined $v ) { $blocks->{$bottom-1} = $v; }
-
-			$context->{y_offset} = $top;
-			$v = $bc->val( $context,"top_block"); 
-			if( defined $v ) { $blocks->{$top} = $v; }
-
-			$context->{y_offset} = $top+1;
-			$v = $bc->val( $context,"over_block"); 
-			if( defined $v ) { $blocks->{$top+1} = $v; }
-
-			if( $opts{FLOOD} )
-			{
-				for( my $i=1; $i<=$opts{FLOOD}; $i++ )
-				{
-					$context->{y_offset} = $i; # not currently used
-					my $block_el = $el+$i;
-					if( $el+$i <= $opts{FLOOD} && (!defined $blocks->{$i} || $blocks->{$i}==0 ))
-					{
-						$blocks->{$i} = 9; # water, obvs.
-					}
-				}	
-			}
+		}	
+	}
 #print Dumper( $bc, $blocks );
 #print "...\n";
-			foreach my $offset ( sort keys %$blocks )
-			{
-				my $y = $SEALEVEL+$offset;
-				$y+=$el if( !$opts{FLATLAND} );
-				next if( $y>$opts{TOP_OF_WORLD} );
-				$self->{world}->set_block( $x, $y, $z, $blocks->{$offset} );
-			}
+	foreach my $offset ( sort keys %$blocks )
+	{
+		my $y = $SEALEVEL+$offset;
+		$y+=$el if( !$opts{FLATLAND} );
+		next if( $y>$opts{TOP_OF_WORLD} );
+		$self->{world}->set_block( $x, $y, $z, $blocks->{$offset} );
+	}
 
-			my $biome = $bc->val( $context,"biome");
-			if( defined $biome ) { $self->{world}->set_biome( $x,$z, $biome ); }
-	
-			$block_count++;
-			if( $block_count % (256*256) == 0 ) { $self->{world}->save(); }
-		}
-	}			
-	$self->{world}->save(); 
+	my $biome = $bc->val( $context,"biome");
+	if( defined $biome ) { $self->{world}->set_biome( $x,$z, $biome ); }
 }
+
+
 
 package Minecraft::Projection::BlockConfig;
 use strict;

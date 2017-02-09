@@ -13,6 +13,19 @@ use strict;
 use warnings;
 
 
+my $GRID = {
+'A'=>[ 0, 4 ], 'B'=>[ 1, 4 ], 'C'=>[ 2, 4 ], 'D'=>[ 3, 4 ], 'E'=>[ 4, 4 ],
+'F'=>[ 0, 3 ], 'G'=>[ 1, 3 ], 'H'=>[ 2, 3 ], 'J'=>[ 3, 3 ], 'K'=>[ 4, 3 ], 
+'L'=>[ 0, 2 ], 'M'=>[ 1, 2 ], 'N'=>[ 2, 2 ], 'O'=>[ 3, 2 ], 'P'=>[ 4, 2 ], 
+'Q'=>[ 0, 1 ], 'R'=>[ 1, 1 ], 'S'=>[ 2, 1 ], 'T'=>[ 3, 1 ], 'U'=>[ 4, 1 ], 
+'V'=>[ 0, 0 ], 'W'=>[ 1, 0 ], 'X'=>[ 2, 0 ], 'Y'=>[ 3, 0 ], 'Z'=>[ 4, 0 ], };
+
+my $RGRID = {};
+foreach my $code ( keys %$GRID ) {
+	my $en = $GRID->{$code};
+	$RGRID->{$en->[0].$en->[1]} = $code;
+}
+
 
 sub new 
 {
@@ -70,40 +83,56 @@ sub download_url
 
 sub download
 {
-	my( $self, $file_e, $file_n ) = @_;
+	my( $self, $model, $file_e, $file_n ) = @_;
 
-	#print "($file_e)($file_n)\n";
-	my $url = sprintf( 
-		"https://raw.githubusercontent.com/cgutteridge/uklidar/master/catalog/%04d-%04d.json",
-		POSIX::floor( $file_e/10000 )*10,
-		POSIX::floor( $file_n/10000 )*10 );
-	if( $self->{loaded}->{$url} )
-	{
-		return; 
-	}
-	my $json_text = $self->get_url( $url );
-print "* $url\n";
-	my $cat_record = decode_json( $json_text );
+	# LOAD CATALOGUE IF NEEDED
 
-	my $target = {};
-	foreach my $item ( @$cat_record )
+	# calculate the outer tile
+	# which is offset by -2, -1 for who knows why?
+	my $e1 = POSIX::floor( $file_e/500000 )+2;
+	my $n1 = POSIX::floor( $file_n/500000 )+1;
+	my $g1 = $RGRID->{$e1.$n1};
+#print "($e1)($n1)($g1)\n";
+	my $e2 = POSIX::floor( ($file_e%500000)/100000 );
+	my $n2 = POSIX::floor( ($file_n%500000)/100000 );
+	my $g2 = $RGRID->{$e2.$n2};
+#print "($e2)($n2)($g2)\n";
+	my $e3 = POSIX::floor( ($file_e%100000)/10000 );
+	my $n3 =POSIX::floor( ($file_n%100000)/10000 );
+	my $url = "http://www.geostore.com/environment-agency/rest/product/OS_GB_10KM/$g1$g2$e3$n3?catalogName=Survey";
+
+	if( !$self->{loaded}->{$url} )
 	{
-		my $id = $item->{metaDataUrl};
-		if( !defined $id ) { print "Missing metaDataUrl.. skipping dataset\n"; next; }
-		$id =~ s/1$//;
-		$target->{$id} = $item->{url};
+		print "* $url\n";
+		my $json_text = $self->get_url( $url );
+		my $cat_record = decode_json( $json_text );
+	
+		$self->{zips}->{$url} = { DSM=>[], DTM=>[] };
+		foreach my $item ( @$cat_record )
+		{
+#			my $id = $item->{metaDataUrl};
+#			if( defined $id ) { 
+#				$id =~ s/1$//;
+#				$target->{DSM} = $item->{guid} if( $id eq "https://data.gov.uk/dataset/lidar-composite-dsm-1m" );
+#				$target->{DTM} = $item->{guid} if( $id eq "https://data.gov.uk/dataset/lidar-composite-dtm-1m" );
+#			}
+			push @{$self->{zips}->{$url}->{DSM}}, $item->{guid} if( $item->{pyramid} =~ m/^LIDAR-DSM-1M/ );
+			push @{$self->{zips}->{$url}->{DTM}}, $item->{guid} if( $item->{pyramid} =~ m/^LIDAR-DTM-1M/ );
+		}
+		$self->{loaded}->{$url} = 1;
 	}
 
-	if( defined $target->{"https://data.gov.uk/dataset/lidar-composite-dsm-1m"} )
-	{
-		$self->add_zip( $target->{"https://data.gov.uk/dataset/lidar-composite-dsm-1m"}, "DSM" );
+	# keep trying packs until we get a hit for this file
+	if( scalar @{$self->{zips}->{$url}->{$model}} ) {
+		# while there's still some untried zips and we don't have the file we need
+		while( scalar @{$self->{zips}->{$url}->{$model}} && !$self->{files}->{$model}->{ $file_n }->{ $file_e } ) {
+			print "TRYING NEXT OPTION for $file_e/$file_n. ".scalar @{$self->{zips}->{$url}->{$model}}." remain.\n";
+			my $zip_id = pop @{$self->{zips}->{$url}->{$model}};
+			$self->add_zip( 'http://www.geostore.com/environment-agency/rest/product/download/'.$zip_id, $model );
+		}
 	}
-	if( defined $target->{"https://data.gov.uk/dataset/lidar-composite-dtm-1m"} )
-	{
-		$self->add_zip( $target->{"https://data.gov.uk/dataset/lidar-composite-dtm-1m"}, "DTM" );
-	}
+	
 
-	$self->{loaded}->{$url} = 1;
 }
 
 sub add_zip
@@ -248,7 +277,7 @@ sub cell_elevation
 	{
 		# attempt to download lidar
 		# print "no elevation for $file_e,$file_n\n"; 
-		$self->download( $file_e, $file_n );
+		$self->download( $model, $file_e, $file_n );
 		$fn = $self->{files}->{$model}->{ $file_n }->{ $file_e };
 		if( !defined $fn ) 
 		{
