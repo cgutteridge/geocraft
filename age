@@ -10,8 +10,11 @@ use Getopt::Long;
 use strict;
 use warnings;
 
-#`rm -rf saves/aged`;
-#`cp -a saves/VentnorModel saves/aged`;
+##################################
+
+`cp -a saves/NV saves/NVAGED`;
+
+##################################
 
 my $x1 = 64*16;
 my $z1 = 51*16;
@@ -19,9 +22,11 @@ my $z1 = 51*16;
 my $x2 = 100*16;
 my $z2 = 61*16;
 
-$x1=-245; $z1=290;
-$x2=-200; $z2=340;
+$x1=110; $z1=210;
+$x2=210; $z2=327;
 
+my @layer = (4,4,13,13,13,3,3,3,3,3);
+@layer = (3,3,3,3,3,3,3);
 
 # layers to exfoliate
 my $y1 = 50;
@@ -30,21 +35,27 @@ my $y2 = 255;
 my $SAND_CHANCE=0.8;
 my $GRASS_CHANCE = 0.1;
 
-my $worldname = 'VillageAged';
+my $worldname = 'NVAGED';
+
+##################################
+
+my $SNAPSHOT=0;
+my $layers = scalar @layer;
+
+
 my $mc = new Minecraft( "$FindBin::Bin/saves" );
 my $world = $mc->world( $worldname );
 
-print "Setting World Options\n";
 my $nbt = Minecraft::NBT->from_gzip_file( "$FindBin::Bin/saves/$worldname/level.dat" );
-$nbt->{Data}->{LevelName}->{_value} .= " (AGED)";
-$nbt->{Data}->{LastPlayed}->{_value} = time()."000";
-$nbt->to_gzip_file( "$FindBin::Bin/saves/$worldname/level.dat" );
+my $levelName = $nbt->{Data}->{LevelName}->{_value};
+
+snapshot( $SNAPSHOT++ );
 
 print "Removing grass, plants, fragile objects\n";
 my $top = {};
-for(my $z=$z1;$z<=$z2;++$z ) {
+for(my $z=$z1-$layers;$z<=$z2+$layers;++$z ) {
   print ".";
-  for(my $x=$x1;$x<=$x2;++$x ) {
+  for(my $x=$x1-$layers;$x<=$x2+$layers;++$x ) {
     my $y;
     for( $y=1; $y<255 && $world->has_block( $x,$y,$z ); ++$y ) {
       my $type = Minecraft::blockType( $world->get_block( $x,$y,$z ) );
@@ -58,6 +69,8 @@ for(my $z=$z1;$z<=$z2;++$z ) {
   }
 }
 print "done\n";
+
+snapshot( $SNAPSHOT++ );
 
 my $break_chance = {
     "dirt"=> 0,
@@ -74,8 +87,6 @@ my $break_chance = {
 };
 
 print "Applying layers of sediment\n";
-my @layer = (4,4,13,13,13,3,3,3,3,3);
- @layer = (3,3,3,3,3);
 for(my $i=0;$i<scalar @layer;++$i) {
   print "Layer ".($i+1);
   for(my $z=$z1;$z<=$z2;++$z ) {
@@ -117,15 +128,15 @@ for(my $i=0;$i<scalar @layer;++$i) {
     }
   }
   print "\n";
+  snapshot( $SNAPSHOT++ );
 }
 
 my @DIRS = ( [-1,0],[1,0],[0,1],[0,-1] );
 # regrass. has to expand out 1 per layer for overspill
 print "Adding grass and plants\n";
-my $layers = scalar @layer;
-for(my $z=$z1-$layers;$z<=$z2+$layers;++$z ) {
+ROW: for(my $z=$z1-$layers;$z<=$z2+$layers;++$z ) {
   print ".";
-  for(my $x=$x1-$layers;$x<=$x2+$layers;++$x ) {
+  COL: for(my $x=$x1-$layers;$x<=$x2+$layers;++$x ) {
     my $y;
     for( $y=255; $y>0 && Minecraft::blockType($world->get_block( $x,$y,$z )) eq "air"; $y-- ) { }
     my $type = Minecraft::blockType( $world->get_block( $x,$y,$z ) );
@@ -135,6 +146,8 @@ for(my $z=$z1-$layers;$z<=$z2+$layers;++$z ) {
         $world->set_block( $x,$y+1,$z, 31.01 );
       }
     }
+
+    next COL; # skip wood to course dirt step
 
     # replace wood with course dirt.. maybe
     LAYER: while( $y>0 ) {
@@ -155,8 +168,26 @@ for(my $z=$z1-$layers;$z<=$z2+$layers;++$z ) {
   }
 }
 print "done\n";
+snapshot( $SNAPSHOT++ );
 
 
+print "Setting World Options\n";
+$nbt = Minecraft::NBT->from_gzip_file( "$FindBin::Bin/saves/$worldname/level.dat" );
+$nbt->{Data}->{LevelName}->{_value} = $levelName." (AGED)";
+$nbt->{Data}->{LastPlayed}->{_value} = time()."000";
+$nbt->to_gzip_file( "$FindBin::Bin/saves/$worldname/level.dat" );
 $world->save();
 exit;
 
+sub snapshot
+{
+	my( $id ) = @_;
+	print "SNAPSHOT $id\n";
+	my $nbt = Minecraft::NBT->from_gzip_file( "$FindBin::Bin/saves/$worldname/level.dat" );
+	$nbt->{Data}->{LevelName}->{_value} = $levelName." (AGED shot $id)";
+	$nbt->{Data}->{LastPlayed}->{_value} = time()."000";
+	$nbt->to_gzip_file( "$FindBin::Bin/saves/$worldname/level.dat" );
+	$world->save();
+
+	`cp -a saves/$worldname saves/${worldname}_$id`;
+}
