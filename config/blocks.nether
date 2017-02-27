@@ -12,11 +12,13 @@ $Minecraft::Config::BLOCKS = {
 		# bottom_block undef by default
 		# under_block undef by default
 		# top_block undef by default
+		up_block => 112, # nether brick
 		over_block => sub { 
 			my( $context ) = @_; 
 			return 51 if( $context->{feature_height} == 0 && rand(80)<1 ); #fire !!!
 			return 0; # air
 		},
+		look_around=>1,
 	},
 	"3.1"=>{ # course dirt
 		block=>88, # soul sand
@@ -36,11 +38,11 @@ $Minecraft::Config::BLOCKS = {
 	},
 	"45"=>{ # brick
 		feature_min_height => 3, # buildings always at least 3m high
-		up_block => 112,
+		up_block => sub { my( $context ) = @_; return 0 if( $context->is_inside ); return 112; },
 		over_block => 0,
 	},
 	"98"=>{ # stone blocks
-		up_block => 98,
+		up_block => sub { my( $context ) = @_; return 0 if( $context->is_inside ); return 98; },
 		feature_min_height => 3, # buildings always at least 3m high
 		over_block => 0,
 	},
