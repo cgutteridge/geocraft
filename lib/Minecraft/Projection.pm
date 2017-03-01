@@ -4,6 +4,7 @@ use Geo::Coordinates::OSGB;
 use Math::Trig;
 use Data::Dumper;
 use Minecraft::Context;
+use Geo::Coordinates::OSTN02;
 use strict;
 use warnings;
 
@@ -23,7 +24,7 @@ my $TILE_H = 256;
 sub ll_to_grid
 {
 	my( $lat, $long, $grid ) = @_;
-	#print "ll_to_grid($lat,$long)\n";
+	# print "ll_to_grid($lat,$long)\n";
 
 	if( defined $grid && $grid eq "MERC" )
 	{

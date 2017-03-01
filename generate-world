@@ -3,8 +3,6 @@
 use Data::Dumper;
 use FindBin;
 use lib "$FindBin::Bin/lib";
-use Geo::Coordinates::OSGB qw(ll_to_grid grid_to_ll);
-use Geo::Coordinates::OSTN02;
 use Minecraft;
 use Elevation;
 use Minecraft::Projection;
@@ -27,6 +25,7 @@ my $rotate;
 my $scale;
 my $mapzoom;
 my $tiles;
+my $grid;
 
 BEGIN { 
 	sub load_config
@@ -74,6 +73,7 @@ BEGIN {
               	"mapzoom=i"  => \$mapzoom,
 		"elevation=s" => \$elevation_plugin,
 		"tile=s" => \$tiles,
+		"grid=s" => \$grid,
 	)) {
 		print STDERR ("Error in command line arguments\n");
 		help();
@@ -117,17 +117,22 @@ if( $help )
 	exit( 0 );
 }
 
-
-my $OPTS = {};
-
-$OPTS->{FLATLAND} = 0;
-$OPTS->{FLOOD} = 0;
-
 my $worldname = $ARGV[0];
 if( !defined $worldname )
 {
 	die "No worldname given";
 }
+
+###################################################
+
+if( !defined $grid ) { 
+	$grid = "OSGB36";
+}
+my $OPTS = {};
+
+$OPTS->{FLATLAND} = 0;
+$OPTS->{FLOOD} = 0;
+
 
 # goal is to end up with bottom left & top right corners in Easting/Northing
 
@@ -155,7 +160,7 @@ if( defined $centre )
 	my( $e,$n );
 	if( $ll ) 
 	{
-		($e,$n) = ll_to_en( $x,$y);
+		($e,$n) = Minecraft::Projection::ll_to_grid($x,$y, $grid );
 	}
 	else
 	{
@@ -190,8 +195,8 @@ elsif( defined $from && defined $to )
 	my( $e2,$n2 );
 	if( $ll ) 
 	{
-		($e1,$n1)=ll_to_en( $x1,$y1);
-		($e2,$n2)=ll_to_en( $x2,$y2);
+		($e1,$n1) = Minecraft::Projection::ll_to_grid($x1,$y1, $grid );
+		($e2,$n2) = Minecraft::Projection::ll_to_grid($x2,$y2, $grid );
 	}
 	else
 	{
@@ -288,7 +293,6 @@ $OPTS->{ELEVATION} = "Elevation::$elevation_plugin"->new(
 	"$FindBin::Bin/var/tmp", 
 );
 
-my $grid = "OSGB36";
 my $p = Minecraft::Projection->new( $world, 0,0, $ANCHOR_E,$ANCHOR_N, $grid );
 print "Projection created. MC0,0 = ${ANCHOR_E}E ${ANCHOR_N}N\n"; 
 
@@ -312,10 +316,3 @@ sub postcode_to_en
 }
 
 
-sub ll_to_en
-{
-	my( $lat, $long ) = @_;
-
-	my ($x, $y) = Geo::Coordinates::OSGB::ll_to_grid($lat, $long, 'ETRS89'); # or 'WGS84'
-	return Geo::Coordinates::OSTN02::ETRS89_to_OSGB36($x, $y );
-}
