@@ -125,6 +125,9 @@ if( !defined $worldname )
 
 ###################################################
 
+if( !defined $mapzoom ) { 
+	$mapzoom = 18;
+}
 if( !defined $grid ) { 
 	$grid = "OSGB36";
 }
@@ -160,7 +163,7 @@ if( defined $centre )
 	my( $e,$n );
 	if( $ll ) 
 	{
-		($e,$n) = Minecraft::Projection::ll_to_grid($x,$y, $grid );
+		($e,$n) = Minecraft::Projection::ll_to_grid($x,$y, $grid,$rotate );
 	}
 	else
 	{
@@ -195,8 +198,8 @@ elsif( defined $from && defined $to )
 	my( $e2,$n2 );
 	if( $ll ) 
 	{
-		($e1,$n1) = Minecraft::Projection::ll_to_grid($x1,$y1, $grid );
-		($e2,$n2) = Minecraft::Projection::ll_to_grid($x2,$y2, $grid );
+		($e1,$n1) = Minecraft::Projection::ll_to_grid($x1,$y1, $grid,$rotate );
+		($e2,$n2) = Minecraft::Projection::ll_to_grid($x2,$y2, $grid,$rotate );
 	}
 	else
 	{
@@ -264,7 +267,7 @@ my $world = $mc->world( $worldname, init_chunk=>sub {
 
 
 $OPTS->{MAPTILES} = new Minecraft::MapTiles(
-	zoom=>19,
+	zoom=>$mapzoom,
 	spread=>3,
 	width=>256,
 	height=>256,
@@ -293,7 +296,7 @@ $OPTS->{ELEVATION} = "Elevation::$elevation_plugin"->new(
 	"$FindBin::Bin/var/tmp", 
 );
 
-my $p = Minecraft::Projection->new( $world, 0,0, $ANCHOR_E,$ANCHOR_N, $grid );
+my $p = Minecraft::Projection->new( $world, 0,0, $ANCHOR_E,$ANCHOR_N, $grid, $rotate );
 print "Projection created. MC0,0 = ${ANCHOR_E}E ${ANCHOR_N}N\n"; 
 
 $p->render( %$OPTS );
