@@ -178,15 +178,18 @@ sub add_file
 	close( $fh );
 	if( defined $self->{ncols} && $metadata->{ncols} != $self->{ncols} )
 	{
-		die "$filename had ncols=".$metadata->{ncols}.", expected ".$self->{ncols};
+		print "$filename had ncols=".$metadata->{ncols}.", expected ".$self->{ncols}.", skipping.\n";
+		return;
 	}
 	if( defined $self->{nrows} && $metadata->{nrows} != $self->{nrows} )
 	{
-		die "$filename had nrows=".$metadata->{nrows}.", expected ".$self->{nrows};
+		print "$filename had nrows=".$metadata->{nrows}.", expected ".$self->{nrows}.", skipping.\n";
+		return;
 	}
 	if( defined $self->{cellsize} && $metadata->{cellsize} != $self->{cellsize} )
 	{
-		die "$filename had cellsize=".$metadata->{cellsize}.", expected ".$self->{cellsize};
+		print "$filename had cellsize=".$metadata->{cellsize}.", expected ".$self->{cellsize}.", skipping.\n";
+		return;
 	}
 	$self->{files}->{$model}->{$metadata->{yllcorner}}->{$metadata->{xllcorner}} = $filename;
 }
