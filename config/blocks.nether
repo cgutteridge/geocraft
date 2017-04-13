@@ -20,41 +20,28 @@ $Minecraft::Config::BLOCKS = {
 		},
 		look_around=>1,
 	},
-	"3.1"=>{ # course dirt
+	ALLOTMENT=>{ # course dirt
 		block=>88, # soul sand
 		feature_filter => 0, # show low features
 		over_block => 0,
 	},
-	"3"=>{ # dirt
-		block=>88, # soul sand
-		feature_filter => 0, # show low features
-		over_block => 0,
-	},
-	"2"=>{ # grass
+	GRASS=>{ # grass
 		block=>88, # soul sand
 		up_block => "48", # mossy cobble
 		feature_filter => 0, # show low features
 		over_block => 0,
 	},
-	"45"=>{ # brick
+	BUILDING=>{ # brick
 		feature_min_height => 3, # buildings always at least 3m high
 		up_block => sub { my( $context ) = @_; return 0 if( $context->is_inside ); return 112; },
 		over_block => 0,
 	},
-	"98"=>{ # stone blocks
+	CHURCH=>{ # stone blocks
 		up_block => sub { my( $context ) = @_; return 0 if( $context->is_inside ); return 98; },
 		feature_min_height => 3, # buildings always at least 3m high
 		over_block => 0,
 	},
-	"8"=>{ # water
-		
-		block=>11, #lava
-		feature_filter => 10, # remove small features on water (boats)
-		up_block => 4, # make big features stone (large boats & bridges)
-		under_block => 87, # base under the water.
-		over_block => 0,
-	},
-	"9"=>{ # water
+	WATER=>{ # water
 		block=>11, #lava
 		# block => sub { my( $context ) = @_; return (5+int(rand(50))); },
 		feature_filter => 10, # remove small features on water (boats)
@@ -62,36 +49,18 @@ $Minecraft::Config::BLOCKS = {
 		under_block => 87, # base under the water.
 		over_block => 0,
 	},
-	"10"=>{ # lava
-		feature_filter => 10, # remove small features on lava (boats)
-		up_block => 1, # make big features stone (large boats & bridges)
-		under_block => 1, # base under the lava.
-		over_block => 0,
-	},
-	"11"=>{ # lava
-		feature_filter => 10, # remove small features on lava (boats)
-		up_block => 1, # make big features stone (large boats & bridges)
-		under_block => 1, # base under the lava.
-		over_block => 0,
-	},
-	"12"=>{ # sand
+	SAND=>{ # sand
 		block=>88, # soul sand
 		up_block => 4, # cobble
 		under_block => 88, # base under the sand.
 		over_block => 0,
 	},
-	"12.01"=>{ # red sand
-		block=>88, # soul sand
-		up_block => 4, # cobble
-		under_block => 88, # base under the sand.
-		over_block => 0,
-	},
-	"13"=>{ # gravel
+	CARPARK=>{ # gravel
 		block => 13,
 		under_block => 88, # base under the gravel.
 		over_block => 0,
 	},
-	"159.15"=>{ # road
+	ROAD=>{ # road
 		block => 112,
 	},
 

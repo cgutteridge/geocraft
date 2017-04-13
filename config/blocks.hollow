@@ -18,27 +18,27 @@ $Minecraft::Config::BLOCKS = {
 		# not sure we can cleanly make filtered features hollow yet
 		look_around=>1,
 	},
-	"3.1"=>{ # course dirt
+	ALLOTMENT=>{ # course dirt
 		up_block => "18", # leaves
 		feature_filter => 0, # show low features
 	},
-	"3"=>{ # dirt
+	GRASS=>{ # dirt
 		up_block => "18", # leaves
 		feature_filter => 0, # show low features
 	},
-	"2"=>{ # grass
+	GRASS=>{ # grass
 		up_block => "18", # leaves
 		feature_filter => 0, # show low features
 		down_block => 3, # dirt
 	},
-	"45"=>{ # brick
+	BUILDING=>{ # brick
 		feature_min_height => 3, # buildings always at least 3m high
 		block => 1, # stone under a building
 		look_around => 1,
 		up_block => sub { my( $context ) = @_; return 0 if( $context->is_inside ); return 45; },
 		over_block => 171.08, # light grey carpet
 	},
-	"98"=>{ # stone blocks
+	CHURCH=>{ # stone blocks
 		look_around => 1,
 		up_block => sub {
 			my( $context ) = @_;
@@ -48,34 +48,16 @@ $Minecraft::Config::BLOCKS = {
 		block => 1, # stone under a building
 		feature_min_height => 3, # buildings always at least 3m high
 	},
-	"8"=>{ # water
+	WATER=>{ # water
 		feature_filter => 10, # remove small features on water (boats)
 		up_block => 1, # make big features stone (large boats & bridges)
 		under_block => 3, # base under the water.
 	},
-	"9"=>{ # water
-		feature_filter => 10, # remove small features on water (boats)
-		up_block => 1, # make big features stone (large boats & bridges)
-		under_block => 3, # base under the water.
-	},
-	"10"=>{ # lava
-		feature_filter => 10, # remove small features on lava (boats)
-		up_block => 1, # make big features stone (large boats & bridges)
-		under_block => 1, # base under the lava.
-	},
-	"11"=>{ # lava
-		feature_filter => 10, # remove small features on lava (boats)
-		up_block => 1, # make big features stone (large boats & bridges)
-		under_block => 1, # base under the lava.
-	},
-	"12"=>{ # sand
+	SAND=>{ # sand
 		up_block => 5, # wood features on sand??
 		under_block => 3, # base under the sand.
 	},
-	"12.01"=>{ # red sand
-		under_block => 3, # base under the sand.
-	},
-	"13"=>{ # gravel
+	CARPARK=>{ # gravel
 		under_block => 3, # base under the gravel.
 	},
 
