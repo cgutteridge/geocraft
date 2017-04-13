@@ -17,6 +17,7 @@ my $size;
 my $ll;
 my $help;
 my $yshift;
+my $flood;
 my $replace;
 my $blocks;
 my $colours;
@@ -47,6 +48,7 @@ BEGIN {
 		print "Additional options: \n";
 		print "  --replace\n";
 		print "  --yshift <n>\n";
+		print "  --flood <n>\n";
 		print "  --blocks <file>\n";
 		print "  --colours <file>\n";
 		print "  --elevation <plugin>\n";
@@ -67,6 +69,7 @@ BEGIN {
               	"ll"  => \$ll,
               	"replace"  => \$replace,
 		"yshift=i", \$yshift,
+              	"flood=i"  => \$flood,
 		"scale=f", \$scale,
 		"rotate=f", \$rotate,
               	"help"  => \$help,
@@ -135,6 +138,7 @@ my $OPTS = {};
 
 $OPTS->{FLATLAND} = 0;
 $OPTS->{FLOOD} = 0;
+if( defined $flood ) { $OPTS->{FLOOD} = $flood; }
 
 
 # goal is to end up with bottom left & top right corners in Easting/Northing
