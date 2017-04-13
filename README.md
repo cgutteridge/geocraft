@@ -89,9 +89,9 @@ You must use either postcode with size, centre with size or specify a from & to.
 * --blocks `file` :: use an alternate file to decide how to render blocks. --blocks config/blocks.hollow makes hollow buildings, at a cost of speed.
 * --colours `file` :: use an alternate file to interpret colours in open streetmap tiles.
 * --rotate `degrees` :: rotate the map (90 degrees is a one-quarter rotation. This option is a bit messy still and the origin of rotation is something weird. 
-* --scale `factor> :: make the world larger or smaller. By default one Minecraft block is one real-world block. If you use --scale 0.1 then every Minecraft block will represent 10 real world metres.
-* --mapzoom `zoom> :: use a different level of detail from open streetmap. Outside cities this should be lowered to avoid forcing open street map to generate high resultion tiles of empty space. Be a good citizen!
-* --tiles `tile-pattern> :: use an alternate map tile server.
+* --scale `factor` :: make the world larger or smaller. By default one Minecraft block is one real-world block. If you use --scale 0.1 then every Minecraft block will represent 10 real world metres.
+* --mapzoom `zoom` :: use a different level of detail from open streetmap. Outside cities this should be lowered to avoid forcing open street map to generate high resultion tiles of empty space. Be a good citizen!
+* --tiles `tile-pattern` :: use an alternate map tile server.
 * --grid `projection` :: use an alternate map projection. Default is OSGB36 for UK stuff. For anywhere else, use --grid MERC (combined with --elevation Flat)
 
 
