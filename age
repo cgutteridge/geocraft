@@ -12,7 +12,7 @@ use warnings;
 
 ##################################
 
-`cp -a saves/NV saves/NVAGED`;
+`rm -rf saves/NVAGED; cp -a saves/NV saves/NVAGED`;
 
 ##################################
 
@@ -26,13 +26,13 @@ $x1=110; $z1=210;
 $x2=210; $z2=327;
 
 my @layer = (4,4,13,13,13,3,3,3,3,3);
-@layer = (3,3,3,3,3,3,3);
+@layer = (3,3,3,3,3,3);
 
 # layers to exfoliate
 my $y1 = 50;
 my $y2 = 255;
 
-my $SAND_CHANCE=0.8;
+my $SEDIMENT_CHANCE=0.8;
 my $GRASS_CHANCE = 0.1;
 
 my $worldname = 'NVAGED';
@@ -74,16 +74,16 @@ snapshot( $SNAPSHOT++ );
 
 my $break_chance = {
     "dirt"=> 0,
-    "wood"=> 0.5,
-    "crafted"=>0.2,
-    "plant"=>0.3,
+    "wood"=> 0.1,
+    "crafted"=>0.1,
     "natural"=>0.1,
     "air"=>0,
-    "data"=>0,
+    "data"=>0, # don't break chests etc.
     "fire"=>1,
-    "fragile"=>0, # don't break fragile objects as they are already gone
     "ice"=>1,    
     "liquid"=>0,    
+    "plant"=>0, # plants already gone
+    "fragile"=>0, # don't break fragile objects as they are already gone
 };
 
 print "Applying layers of sediment\n";
@@ -92,7 +92,7 @@ for(my $i=0;$i<scalar @layer;++$i) {
   for(my $z=$z1;$z<=$z2;++$z ) {
     print ".";
     for(my $x=$x1;$x<=$x2;++$x ) {
-      next if( rand(1) > $SAND_CHANCE );
+      next if( rand(1) > $SEDIMENT_CHANCE );
       my $by = $top->{$z}->{$x};
       my $bx = $x;
       my $bz = $z;
@@ -131,7 +131,7 @@ for(my $i=0;$i<scalar @layer;++$i) {
   snapshot( $SNAPSHOT++ );
 }
 
-my @DIRS = ( [-1,0],[1,0],[0,1],[0,-1] );
+my @DIRS = ( [-1,0,0],[1,0,0],[0,1,0],[0,-1,0],[0,0,-1],[0,0,1] );
 # regrass. has to expand out 1 per layer for overspill
 print "Adding grass and plants\n";
 ROW: for(my $z=$z1-$layers;$z<=$z2+$layers;++$z ) {
@@ -147,20 +147,18 @@ ROW: for(my $z=$z1-$layers;$z<=$z2+$layers;++$z ) {
       }
     }
 
-    next COL; # skip wood to course dirt step
-
     # replace wood with course dirt.. maybe
     LAYER: while( $y>0 ) {
       my $type = Minecraft::blockType( $world->get_block( $x,$y,$z ) );
       if( $type eq "wood" ) {
         my $chance = 0;
         foreach my $dir ( @DIRS ) {
-          my $dirtype = Minecraft::blockType( $world->get_block( $x+$dir->[0],$y,$z+$dir->[1] ) );
-          if( $dirtype eq "air" ) { --$y; next LAYER; }
-          if( $dirtype eq "dirt" ) { $chance+=0.2; }
+          my $dirtype = Minecraft::blockType( $world->get_block( $x+$dir->[0],$y+$dir->[1],$z+$dir->[2] ) );
+          #if( $dirtype eq "air" ) { --$y; next LAYER; }
+          if( $dirtype eq "dirt" ) { $chance = 0.6; }
         }
         if( rand(1)< $chance ) {
-          $world->set_block( $x,$y,$z, 35.06 );
+          $world->set_block( $x,$y,$z, 3.02 );
         }
       }
       --$y;
@@ -182,6 +180,9 @@ exit;
 sub snapshot
 {
 	my( $id ) = @_;
+
+	return; # don't snapshot
+
 	print "SNAPSHOT $id\n";
 	my $nbt = Minecraft::NBT->from_gzip_file( "$FindBin::Bin/saves/$worldname/level.dat" );
 	$nbt->{Data}->{LevelName}->{_value} = $levelName." (AGED shot $id)";
