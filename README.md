@@ -5,12 +5,15 @@ terrain) and information from OpenStreetMap.
 
 ## Installation
 
-This software uses Perl and is dependent on the following modules:
+This software uses Perl and is dependent on the following module:
 
 * Archive::Zip
-* Image::Magick
 
-You'll need to ensure those are installed before using the software.
+You'll need to ensure those are installed before using the software. To check you can use:
+
+perl -MArchive::ZIP -e 'print "OK\n";'
+
+Which will say "OK" if it's installed, and otherwise will report an error.
 
 ## Generating a World
 
@@ -69,12 +72,32 @@ generate worlds winter biome or as part of the nether.
 The ``blocks.hollow`` config generates hollow buildings. It's worth using but 
 takes much longer to generate a world.
 
+## Options
+
+You must use either postcode with size, centre with size or specify a from & to. You must always specify the name of the world to save.
+
+* --saves <mc-saves-dir>  :: Optional. Specify location of Minecraft /saves/ directory.
+* --ll :: Option to indicate that the cordinates are in lat,long (rather than UK easting/northing).
+* --postcode <postcode> :: the UK postcode to centre on.
+* --centre <x>,<y> :: the centre of the map to create (instead of using a postcode)
+* --size <n> :: size of a square map.
+* --size <w>,<h> :: size of a rectangular map.
+* --replace :: delete the existing minecraft world and replace it.
+* --yshift <n> :: move the world vertically up or down. Useful for districts very high above sealevel.
+* --flood <n> :: air blocks between this height and sealevel will be made into water instead, simulating sea-level rise.
+* --blocks <file> :: use an alternate file to decide how to render blocks. --blocks config/blocks.hollow makes hollow buildings, at a cost of speed.
+* --colours <file> :: use an alternate file to interpret colours in open streetmap tiles.
+* --rotate <degrees> :: rotate the map (90 degrees is a one-quarter rotation. This option is a bit messy still and the origin of rotation is something weird. 
+* --scale <factor> :: make the world larger or smaller. By default one Minecraft block is one real-world block. If you use --scale 0.1 then every Minecraft block will represent 10 real world metres.
+* --mapzoom <zoom> :: use a different level of detail from open streetmap. Outside cities this should be lowered to avoid forcing open street map to generate high resultion tiles of empty space. Be a good citizen!
+* --tiles <tile-pattern> :: use an alternate map tile server.
+
 ## Attribution & Copyright
 
 This software is provided under the GPLv3. Please feel free to alter and share it.
 
 This version was written by Christopher Gutteridge at the University of Southampton.
-(c) 2015 Christopher Gutteridge
+(c) 2015-2017 Christopher Gutteridge
 
 LIDAR data (c) Defra under the Open Government License.
 Map data (c) Open Streetmap Contributors under Creative Commons Attribution ShareAlike License.
