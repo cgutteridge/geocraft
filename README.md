@@ -88,3 +88,7 @@ Author contact info:
 Email: cjg@ecs.soton.ac.uk
 Twitter: cgutteridge
 
+## Similar Projects
+
+* http://www.chunkmapper.com/ Chunkmapper builds 1:30 scale maps with buildings and rail
+* https://www.ordnancesurvey.co.uk/blog/tag/minecraft/ The UK Ordnace Survey has made a scale map of the whole country
