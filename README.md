@@ -76,21 +76,24 @@ takes much longer to generate a world.
 
 You must use either postcode with size, centre with size or specify a from & to. You must always specify the name of the world to save.
 
-* --saves <mc-saves-dir>  :: Optional. Specify location of Minecraft /saves/ directory.
+* --saves `mc-saves-dir`  :: Optional. Specify location of Minecraft /saves/ directory.
 * --ll :: Option to indicate that the cordinates are in lat,long (rather than UK easting/northing).
-* --postcode <postcode> :: the UK postcode to centre on.
-* --centre <x>,<y> :: the centre of the map to create (instead of using a postcode)
-* --size <n> :: size of a square map.
-* --size <w>,<h> :: size of a rectangular map.
+* --postcode `postcode` :: the UK postcode to centre on.
+* --centre `x`,`y` :: the centre of the map to create (instead of using a postcode)
+* --size `n` :: size of a square map.
+* --size `w`,`h` :: size of a rectangular map.
 * --replace :: delete the existing minecraft world and replace it.
-* --yshift <n> :: move the world vertically up or down. Useful for districts very high above sealevel.
-* --flood <n> :: air blocks between this height and sealevel will be made into water instead, simulating sea-level rise.
-* --blocks <file> :: use an alternate file to decide how to render blocks. --blocks config/blocks.hollow makes hollow buildings, at a cost of speed.
-* --colours <file> :: use an alternate file to interpret colours in open streetmap tiles.
-* --rotate <degrees> :: rotate the map (90 degrees is a one-quarter rotation. This option is a bit messy still and the origin of rotation is something weird. 
-* --scale <factor> :: make the world larger or smaller. By default one Minecraft block is one real-world block. If you use --scale 0.1 then every Minecraft block will represent 10 real world metres.
-* --mapzoom <zoom> :: use a different level of detail from open streetmap. Outside cities this should be lowered to avoid forcing open street map to generate high resultion tiles of empty space. Be a good citizen!
-* --tiles <tile-pattern> :: use an alternate map tile server.
+* --yshift `n` :: move the world vertically up or down. Useful for districts very high above sealevel.
+* --flood `n` :: air blocks between this height and sealevel will be made into water instead, simulating sea-level rise.
+* --elevation `plugin` :: use an alternate elevation plugin. Default is UKDefra. Alternate is Flat (for no LIDAR data).
+* --blocks `file` :: use an alternate file to decide how to render blocks. --blocks config/blocks.hollow makes hollow buildings, at a cost of speed.
+* --colours `file` :: use an alternate file to interpret colours in open streetmap tiles.
+* --rotate `degrees` :: rotate the map (90 degrees is a one-quarter rotation. This option is a bit messy still and the origin of rotation is something weird. 
+* --scale `factor> :: make the world larger or smaller. By default one Minecraft block is one real-world block. If you use --scale 0.1 then every Minecraft block will represent 10 real world metres.
+* --mapzoom `zoom> :: use a different level of detail from open streetmap. Outside cities this should be lowered to avoid forcing open street map to generate high resultion tiles of empty space. Be a good citizen!
+* --tiles `tile-pattern> :: use an alternate map tile server.
+* --grid `projection` :: use an alternate map projection. Default is OSGB36 for UK stuff. For anywhere else, use --grid MERC (combined with --elevation Flat)
+
 
 ## Attribution & Copyright
 
