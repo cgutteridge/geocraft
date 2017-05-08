@@ -277,7 +277,7 @@ $OPTS->{MAPTILES} = new Minecraft::MapTiles(
 	height=>256,
 	dir=>"$FindBin::Bin/var/tiles", 
 	url=>"http://b.tile.openstreetmap.org/",
-	default_block=>1,
+	default_block=>"DEFAULT",
 	map=>$Minecraft::Config::COLOURS,
 );
 

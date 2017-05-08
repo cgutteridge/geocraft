@@ -6,13 +6,15 @@ use FindBin;
 use lib "$FindBin::Bin/lib";
 use Minecraft;
 use Getopt::Long;
+use Math::Round;
 
 use strict;
 use warnings;
 
+my $WORLDNAME = "PlainDig";
 ##################################
 
-`rm -rf saves/NVAGED; cp -a saves/NV saves/NVAGED`;
+`rm -rf saves/$WORLDNAME; cp -a saves/Temple2 saves/$WORLDNAME`;
 
 ##################################
 
@@ -25,6 +27,10 @@ my $z2 = 61*16;
 $x1=110; $z1=210;
 $x2=210; $z2=327;
 
+# henge
+$x1 = -20; $z1=-20;
+$x2 =  10; $z2= 10;
+
 my @layer = (4,4,13,13,13,3,3,3,3,3);
 @layer = (3,3,3,3,3,3);
 
@@ -35,7 +41,7 @@ my $y2 = 255;
 my $SEDIMENT_CHANCE=0.8;
 my $GRASS_CHANCE = 0.1;
 
-my $worldname = 'NVAGED';
+my $worldname = $WORLDNAME;
 
 ##################################
 
@@ -49,57 +55,98 @@ my $world = $mc->world( $worldname );
 my $nbt = Minecraft::NBT->from_gzip_file( "$FindBin::Bin/saves/$worldname/level.dat" );
 my $levelName = $nbt->{Data}->{LevelName}->{_value};
 
+
+print "Calculating region\n";
+my @full = ();
+my @core = ();
+if( 0 ) { 
+  for(my $z=$z1-$layers;$z<=$z2+$layers;++$z ) {
+    for(my $x=$x1-$layers;$x<=$x2+$layers;++$x ) {
+      push @full, [$x,$z];
+    }
+  }
+  for(my $z=$z1;$z<=$z2;++$z ) {
+    for(my $x=$x1;$x<=$x2;++$x ) {
+      push @core, [$x,$z];
+    }
+  }
+} else {
+  # radial
+  my $cx = 0;
+  my $cz = 0;
+  my $r = 40;
+
+  my $rfull = $r+$layers;
+  for( my $zo=-$rfull+1; $zo<$rfull; $zo++ ) {
+    my $width = int sqrt( $rfull*$rfull - $zo*$zo );
+    for( my $xo=-$width; $xo<=$width; ++$xo ) {
+      push @full, [ $cx+$xo, $cz+$zo ];
+    }
+  }
+
+  for( my $zo=-$r+1; $zo<$r; $zo++ ) {
+    my $width = int sqrt( $r*$r - $zo*$zo );
+    for( my $xo=-$width; $xo<=$width; ++$xo ) {
+      push @core, [ $cx+$xo, $cz+$zo ];
+    }
+  }
+}
+
 snapshot( $SNAPSHOT++ );
 
-print "Removing grass, plants, fragile objects\n";
-my $top = {};
-for(my $z=$z1-$layers;$z<=$z2+$layers;++$z ) {
-  print ".";
-  for(my $x=$x1-$layers;$x<=$x2+$layers;++$x ) {
-    my $y;
-    for( $y=1; $y<255 && $world->has_block( $x,$y,$z ); ++$y ) {
+if( 1 ) {
+  print "Removing grass, plants, fragile objects, calculating top of thingy\n";
+  
+  foreach my $col ( @full ) {
+    my( $x,$z ) = @$col;
+    my $y = $world->get_top( $x,$z );
+
+    my $type = Minecraft::blockType( $world->get_block( $x,$y,$z ) );
+    while( $y>0 ) {
       my $type = Minecraft::blockType( $world->get_block( $x,$y,$z ) );
       # don't mess with air, liquid, natural and crafted
       if( $type eq "dirt" ) { $world->set_block( $x,$y,$z, 3 ); }
       if( $type eq "fragile" ) { $world->set_block( $x,$y,$z, 0 ); }
       if( $type eq "plant" ) { $world->set_block( $x,$y,$z, 0 ); }
-#      if( $type eq "wood" ) { $world->set_block( $x,$y,$z, 3.01 ); }
+  #    if( $type eq "wood" ) { $world->set_block( $x,$y,$z, 3.01 ); }
+      --$y;
     }
-    $top->{$z}->{$x}= $y;
   }
+  print "done\n";
+  
+  snapshot( $SNAPSHOT++ );
 }
-print "done\n";
 
-snapshot( $SNAPSHOT++ );
-
-my $break_chance = {
+if( 1 ) {
+  my $break_chance = {
     "dirt"=> 0,
     "wood"=> 0.1,
     "crafted"=>0.1,
-    "natural"=>0.1,
-    "air"=>0,
+    "natural"=>0.01,
+    "air"=>1,
     "data"=>0, # don't break chests etc.
     "fire"=>1,
     "ice"=>1,    
-    "liquid"=>0,    
-    "plant"=>0, # plants already gone
-    "fragile"=>0, # don't break fragile objects as they are already gone
-};
+    "liquid"=>1,    
+    "plant"=>1, # plants already gone but break anyway
+    "fragile"=>1, # break ungone fragile stuff
+  };
 
-print "Applying layers of sediment\n";
-for(my $i=0;$i<scalar @layer;++$i) {
-  print "Layer ".($i+1);
-  for(my $z=$z1;$z<=$z2;++$z ) {
-    print ".";
-    for(my $x=$x1;$x<=$x2;++$x ) {
+  print "Applying layers of sediment\n";
+  for(my $i=0;$i<$layers;++$i) {
+    print "Layer ".($i+1);
+  
+    foreach my $col ( @core ) {
+      my( $x,$z ) = @$col;
+  
       next if( rand(1) > $SEDIMENT_CHANCE );
-      my $by = $top->{$z}->{$x};
+      my $by = $world->get_top( $x,$z )+$layers;
       my $bx = $x;
       my $bz = $z;
-      my $top_type = Minecraft::blockType( $world->get_block( $bx,$by,$bz ) );
-      next if( $top_type ne "liquid" && $top_type ne "air" );
+      #my $top_type = Minecraft::blockType( $world->get_block( $bx,$by,$bz ) );
+      #next if( $top_type ne "liquid" && $top_type ne "air" );
       # ok there's at least on air block
-      LAYER: while($bz>0) {
+      LAYER: while($by>0) {
         # attempt to move down 
         my @moves = shuffle( [-1,0],[1,0],[0,1],[0,-1] );
         unshift @moves, [0,0];
@@ -126,17 +173,56 @@ for(my $i=0;$i<scalar @layer;++$i) {
       }
       $world->set_block( $bx,$by,$bz , $layer[$i] ); #dirt
     }
+    print "\n";
+    snapshot( $SNAPSHOT++ );
   }
-  print "\n";
-  snapshot( $SNAPSHOT++ );
 }
 
-my @DIRS = ( [-1,0,0],[1,0,0],[0,1,0],[0,-1,0],[0,0,-1],[0,0,1] );
-# regrass. has to expand out 1 per layer for overspill
-print "Adding grass and plants\n";
-ROW: for(my $z=$z1-$layers;$z<=$z2+$layers;++$z ) {
-  print ".";
-  COL: for(my $x=$x1-$layers;$x<=$x2+$layers;++$x ) {
+if( 1 ) {
+  print "Smoothing noise\n";
+  my @DIRS = ( 
+	[-1,-1], [-1, 0], [-1, 1],
+	[ 0,-1], [ 0, 0], [ 0, 1],
+	[ 1,-1], [ 1, 0], [ 1, 1] );
+
+  # remove ones that stick up
+  foreach my $col ( @full ) {
+    my( $x,$z ) = @$col;
+
+    my $y = $world->get_top($x,$z);
+    my $av = 0;
+    foreach my $dir ( @DIRS ) {
+	$av += $world->get_top($x+$dir->[0],$z+$dir->[1]);
+    }
+    my $new_y = $av / scalar @DIRS;
+    my $block = $world->get_block( $x,$y,$z );
+    my $diffx = $new_y-$y;
+    my $diff = round($new_y-$y);
+
+    while( $diff > 0 ) {
+      $y++;
+      $diff--;
+      $world->set_block( $x,$y,$z,  3 );
+    }
+    while( $diff < 0 ) {
+      $world->set_block( $x,$y,$z,  0 );
+      $diff++;
+      $y--;
+    }
+
+  }
+
+
+}
+
+if( 1 ) {  
+  my @DIRS = ( [-1,0,0],[1,0,0],[0,1,0],[0,-1,0],[0,0,-1],[0,0,1] );
+  # regrass and skunge buried wood. has to expand out 1 per layer for overspill
+  print "Adding grass and plants, mulching wood\n";
+  
+  foreach my $col ( @full ) {
+    my( $x,$z ) = @$col;
+    
     my $y;
     for( $y=255; $y>0 && Minecraft::blockType($world->get_block( $x,$y,$z )) eq "air"; $y-- ) { }
     my $type = Minecraft::blockType( $world->get_block( $x,$y,$z ) );
@@ -146,7 +232,7 @@ ROW: for(my $z=$z1-$layers;$z<=$z2+$layers;++$z ) {
         $world->set_block( $x,$y+1,$z, 31.01 );
       }
     }
-
+  
     # replace wood with course dirt.. maybe
     LAYER: while( $y>0 ) {
       my $type = Minecraft::blockType( $world->get_block( $x,$y,$z ) );
@@ -155,7 +241,7 @@ ROW: for(my $z=$z1-$layers;$z<=$z2+$layers;++$z ) {
         foreach my $dir ( @DIRS ) {
           my $dirtype = Minecraft::blockType( $world->get_block( $x+$dir->[0],$y+$dir->[1],$z+$dir->[2] ) );
           #if( $dirtype eq "air" ) { --$y; next LAYER; }
-          if( $dirtype eq "dirt" ) { $chance = 0.6; }
+          if( $dirtype eq "dirt" ) { $chance = 1; }
         }
         if( rand(1)< $chance ) {
           $world->set_block( $x,$y,$z, 3.02 );
@@ -164,9 +250,9 @@ ROW: for(my $z=$z1-$layers;$z<=$z2+$layers;++$z ) {
       --$y;
     }
   }
+  print "done\n";
+  snapshot( $SNAPSHOT++ );
 }
-print "done\n";
-snapshot( $SNAPSHOT++ );
 
 
 print "Setting World Options\n";

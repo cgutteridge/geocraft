@@ -5,6 +5,7 @@ use Math::Trig;
 use Data::Dumper;
 use Minecraft::Context;
 use Geo::Coordinates::OSTN02;
+use Carp;
 use strict;
 use warnings;
 
@@ -143,7 +144,7 @@ sub context
 		}
 	}
 	
-	my $block = 1; # default to stone
+	my $block = "DEFAULT"; # default to stone
 	if( defined $opts{MAPTILES} )
 	{
 		$block = $opts{MAPTILES}->block_at( $lat,$long );
@@ -246,7 +247,7 @@ sub render
 	while( scalar @squares ) {
 		my $start_t = time();
 		my $sq = shift @squares;
-		print "Doing: ".($SQ_COUNT-scalar @squares)." of $SQ_COUNT areas of ${SQUARE_SIZE}x${SQUARE_SIZE} at ".$sq->[0].",".$sq->[1];
+		print "Doing: #".($SQ_COUNT-scalar @squares)." of $SQ_COUNT areas of ${SQUARE_SIZE}x${SQUARE_SIZE} at ".$sq->[0].",".$sq->[1];
 		for( my $z=$sq->[1]; $z<$sq->[1]+$SQUARE_SIZE; ++$z ) {
 			for( my $x=$sq->[0]; $x<$sq->[0]+$SQUARE_SIZE; ++$x ) {
 				next if( $x<$WEST || $x>$EAST || $z>$NORTH || $z<$SOUTH );
@@ -280,6 +281,25 @@ sub render
 #	}			
 #	$self->{world}->save(); 
 }
+
+my $TYPE_DEFAULT = {
+DEFAULT=>1,
+GRASS=>2,
+CHURCH=>98,
+BUILDING=>45,
+WATER=>9,
+ROAD=>1.05,
+ALLOTMENT=>3.01,
+SAND=>12,
+CARPARK=>1.06,
+AREA1=>1,
+AREA2=>1,
+AREA3=>1,
+AREA4=>1,
+AREA5=>1,
+AREA6=>1,
+AREA7=>1,
+};
 
 sub render_xz
 {
@@ -323,7 +343,9 @@ sub render_xz
 	# feature_min_height - force this min feature height even if lidar is lower
 
 	my $blocks = {};
-	$blocks->{0} = $bc->val( $context, "block", $block );
+	my $default = $TYPE_DEFAULT->{$block};
+	if( !defined $default ) { confess "unknown block: $block"; }
+	$blocks->{0} = $bc->val( $context, "block", $default );
 
 	my $bottom=0;
 	if( defined $opts{EXTEND_DOWNWARDS} )
@@ -401,6 +423,8 @@ sub render_xz
 package Minecraft::Projection::BlockConfig;
 use strict;
 use warnings;
+use Data::Dumper;
+use Carp;
 
 sub val
 {

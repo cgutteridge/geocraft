@@ -221,6 +221,25 @@ sub set_block
 	}
 	substr( $section->{Data}->{_value}, ($offset/2), 1 ) = chr($byte);
 
+	# update height
+	my $top = $self->{top}->{$rel_z}->{$rel_x};
+	if( defined $top ) 
+	{
+		if( $type==0 && $top==$y ) 
+		{
+			# if the top block is replaced with air the top
+			# needs recalculating.
+			delete $self->{top}->{$rel_z}->{$rel_x};
+		}
+		if( $type!=0 && $y>$top )
+		{
+			# if placing a block above the top block, it's the
+			# new top block.
+			$self->{top}->{$rel_z}->{$rel_x} = $y;
+		}
+	}
+
+
 	$self->{_changed} = 1;
 }
 sub get_biome
@@ -260,7 +279,21 @@ sub set_biome
 	$self->{_changed} = 1;
 }
 
+sub get_top
+{
+	my( $self,   $rel_x,$rel_z ) = @_;
 
+	# could be better -- need to use the HeightMap?
+	if( !defined $self->{top}->{$rel_z}->{$rel_x} ) 
+	{
+		my $y = 255;
+		# work down until we get passed the non existant sections and air
+		while( $y>0 && (!$self->has_block( $rel_x,$y,$rel_z) || $self->get_block( $rel_x,$y,$rel_z )==0 )) { --$y }
+		$self->{top}->{$rel_z}->{$rel_x}= $y;
+	}
+
+	return $self->{top}->{$rel_z}->{$rel_x};
+}
 
 
 

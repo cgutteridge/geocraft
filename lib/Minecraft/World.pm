@@ -78,6 +78,13 @@ sub set_biome
 	my( $x1,$y1,$z1 ) = c($x,0,$z);
 	return $self->block_region( $x,0,$z )->set_biome( $x1,$z1, $id );
 }
+sub get_top
+{
+	my( $self,   $x,$z ) = @_;
+
+	my( $x1,$y1,$z1 ) = c($x,0,$z);
+	return $self->block_region( $x,0,$z )->get_top( $x1,$z1 );
+}
 
 sub save
 {
