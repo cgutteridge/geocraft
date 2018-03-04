@@ -121,6 +121,14 @@ sub save
 	}
 }
 
+# with a following win and no looped references this should free memory 
+sub uncache 
+{
+	my( $self ) = @_;
+
+	$self->{regions} = {};
+}
+
 sub save_level
 {
 	my( $self ) = @_;

@@ -258,6 +258,7 @@ sub render
 		print " (".(time()-$start_t)." seconds)";
 		print "\n";
 		$self->{world}->save(); 
+		$self->{world}->uncache(); 
 	}
 
 #	for( my $z=$SOUTH; $z<=$NORTH; ++$z ) 
