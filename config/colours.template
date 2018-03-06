@@ -39,6 +39,10 @@ $Minecraft::Config::COLOURS = {
 "97:97:72"=> "ROAD", # road
 "99:99:99"=> "ROAD", # road
 "100:100:100"=> "ROAD", # road
+"86:86:91"=> "ROAD", # road (minor road?)
+"96:98:75"=> "ROAD", # road (yellow)
+"98:84:64"=> "ROAD", # road (orange)
+"91:57:63"=> "ROAD", # road (red, motorway)
 
 "89:77:66"=> "ALLOTMENT", # allotment course dirt
 "89:77:67"=> "ALLOTMENT", # allotment course dirt
