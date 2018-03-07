@@ -34,6 +34,7 @@ $Minecraft::Config::COLOURS = {
 
 "70:81:81"=> "WATER", # water
 "71:81:81"=> "WATER", # water
+"66:82:87"=> "WATER", # water
 
 "86:61:61"=> "ROAD", # road 
 "97:97:72"=> "ROAD", # road

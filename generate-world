@@ -27,6 +27,7 @@ my $scale;
 my $mapzoom;
 my $tiles;
 my $grid;
+my $mapcoords;
 
 BEGIN { 
 	sub load_config
@@ -56,6 +57,7 @@ BEGIN {
 		print "  --scale <factor> // 2.0 means block is 50cm. 0.5 means MC block is 2m\n";
 		print "  --mapzoom <value>\n";
 		print "  --tiles <url pattern>   // the map tile pattern\n";
+		print "  --mapcoords // use the easting northing coords as where to render the map in game\n";
 	}
 
 	if( !GetOptions (
@@ -67,6 +69,7 @@ BEGIN {
               	"blocks=s"   => \$blocks,      
               	"colours=s"   => \$colours,      
               	"ll"  => \$ll,
+              	"mapcoords"  => \$mapcoords,
               	"replace"  => \$replace,
 		"yshift=i", \$yshift,
               	"flood=i"  => \$flood,
@@ -224,6 +227,15 @@ else
 {
 	die "missing centre+size or from+to";
 }
+if( $mapcoords ) 
+{
+	$OPTS->{EAST1} += $ANCHOR_E;
+	$OPTS->{EAST2} += $ANCHOR_E;
+	$OPTS->{NORTH1} -= $ANCHOR_N;
+	$OPTS->{NORTH2} -= $ANCHOR_N;
+	$ANCHOR_E = 0;	
+	$ANCHOR_N = 0;	
+}
 	
 ############################### ###############################
 
@@ -256,6 +268,13 @@ print "Setting World Options\n";
 my $nbt = Minecraft::NBT->from_gzip_file( "$FindBin::Bin/saves/$worldname/level.dat" );
 $nbt->{Data}->{LevelName}->{_value} = $worldname;
 $nbt->{Data}->{LastPlayed}->{_value} = time()."000";
+if( $mapcoords ) 
+{
+	$nbt->{Data}->{Player}->{abilities}->{flying}->{_value} = 0;
+	$nbt->{Data}->{Player}->{Pos}->{_value}->[0]->{_value} = $OPTS->{EAST1};
+	$nbt->{Data}->{Player}->{Pos}->{_value}->[1]->{_value} = 250;
+	$nbt->{Data}->{Player}->{Pos}->{_value}->[2]->{_value} = $OPTS->{NORTH1};
+}
 $nbt->to_gzip_file( "$FindBin::Bin/saves/$worldname/level.dat" );
 
 

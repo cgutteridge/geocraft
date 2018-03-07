@@ -185,6 +185,33 @@ sub get_subtype
 		return ($byte&240)/16;
 	}
 }
+
+sub set_light
+{
+	my( $self,   $rel_x,$y,$rel_z, $level ) = @_;
+
+	my $section = $self->block_section($rel_x,$y,$rel_z);
+	if( !$section ) 
+	{ 
+		$section = $self->add_section($rel_x,$y,$rel_z);
+	}
+	my $offset = $self->block_offset($rel_x,$y,$rel_z);
+
+	# set subtype	
+	my $byte = ord substr( $section->{BlockLight}->{_value}, ($offset/2), 1 );
+	if( $offset % 2 == 0 )
+	{
+		$byte = ($byte&240) + $level;
+	}
+	else
+	{
+		$byte = $level*16 + ($byte&15);
+	}
+	substr( $section->{BlockLight}->{_value}, ($offset/2), 1 ) = chr($byte);
+
+	$self->{_changed} = 1;
+}
+
 sub set_block
 {
 	my( $self,   $rel_x,$y,$rel_z, $type ) = @_;

@@ -289,10 +289,10 @@ GRASS=>2,
 CHURCH=>98,
 BUILDING=>45,
 WATER=>9,
-ROAD=>1.05,
+ROAD=>159.07,
 ALLOTMENT=>3.01,
 SAND=>12,
-CARPARK=>1.06,
+CARPARK=>159.08,
 AREA1=>1,
 AREA2=>1,
 AREA3=>1,
@@ -310,6 +310,7 @@ sub render_xz
 	my $block = $context->{block};
 	my $el = $context->{elevation};
 	my $feature_height = $context->{feature_height};
+
 
 	# we now have $block, $el, $SEALEVEL and $feature_height
 	# that's enough to work out what to place at this location
@@ -371,6 +372,10 @@ sub render_xz
 		{
 			$context->{y_offset} = $i;
 			$blocks->{$i} = $bc->val( $context, "up_block", $blocks->{0} );
+			my $light = $bc->val( $context, "light" );
+			if( defined $light ) {
+				print "$light\n";
+			}
 		}
 		$top+=$feature_height;
 	}
@@ -405,8 +410,6 @@ sub render_xz
 			}
 		}	
 	}
-#print Dumper( $bc, $blocks );
-#print "...\n";
 	foreach my $offset ( sort keys %$blocks )
 	{
 		my $y = $SEALEVEL+$offset;
