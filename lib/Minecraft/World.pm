@@ -59,6 +59,12 @@ sub set_block
 
 	return $self->block_region( $x,$y,$z )->set_block( c($x,$y,$z), $id );
 }
+sub add_sign
+{
+	my( $self,   $x,$y,$z, $label ) = @_;
+
+	return $self->block_region( $x,$y,$z )->add_sign( c($x,$y,$z), $x,$z, $label );
+}
 sub set_light
 {
 	my( $self,   $x,$y,$z, $level ) = @_;

@@ -98,12 +98,54 @@ sub new
 	# the real world E & N at MC 0,0
 	$self->{offset_e} = $e-$mc_ref_x;
 	$self->{offset_n} = $n+$mc_ref_z;
+	$self->{points} = {};
 
 	return $self;
 }
-	
+
 # more mc_x : more easting
 # more mc_y : less northing
+
+sub add_point_ll
+{
+	my( $self, $lat,$long, $label ) = @_;
+
+	my( $e, $n ) = ll_to_grid( $lat,$long, $self->{grid}, $self->{rotate} );
+
+	$self->add_point_en( $e, $n, $label );
+}
+
+sub add_point_en 
+{
+	my( $self, $e,$n, $label ) = @_;
+
+	my $actual_x = $e - $self->{offset_e};
+	my $actual_z = -$n + $self->{offset_n};
+
+	# can't cope with scale being set as it's given to render. It should belong to projection, like rotate does.	
+#	if( $opts{SCALE} ) {
+#		$transformed_x = $transformed_x / $opts{SCALE};
+#		$transformed_z = $transformed_z / $opts{SCALE};
+#	}
+
+	$self->add_point( $actual_x,$actual_z, $label );
+}
+
+sub add_point
+{
+	my( $self, $x,$z, $label ) = @_;
+
+	$x = int $x;
+	$z = int $z; 
+
+	if( !defined $self->{points}->{$z}->{$x} ) {
+		$self->{points}->{$z}->{$x} = [];
+	}
+	push @{$self->{points}->{$z}->{$x}}, $label;
+}
+		
+	
+	
 
 
 sub context 
@@ -249,8 +291,9 @@ sub render
 		my $sq = shift @squares;
 		print "Doing: #".($SQ_COUNT-scalar @squares)." of $SQ_COUNT areas of ${SQUARE_SIZE}x${SQUARE_SIZE} at ".$sq->[0].",".$sq->[1];
 		for( my $z=$sq->[1]; $z<$sq->[1]+$SQUARE_SIZE; ++$z ) {
+			next if( $z>$NORTH || $z<$SOUTH );
 			for( my $x=$sq->[0]; $x<$sq->[0]+$SQUARE_SIZE; ++$x ) {
-				next if( $x<$WEST || $x>$EAST || $z>$NORTH || $z<$SOUTH );
+				next if( $x<$WEST || $x>$EAST );
 				$self->render_xz( $x,$z, $SEALEVEL, $BCONFIG, %opts );
 			}
 			print ".";
@@ -410,12 +453,30 @@ sub render_xz
 			}
 		}	
 	}
+
+	my $maxy = -1;
 	foreach my $offset ( sort keys %$blocks )
 	{
 		my $y = $SEALEVEL+$offset;
 		$y+=$el if( !$opts{FLATLAND} );
 		next if( $y>$opts{TOP_OF_WORLD} );
 		$self->{world}->set_block( $x, $y, $z, $blocks->{$offset} );
+		$maxy=$y if( $y>$maxy );
+	}
+	if( defined $self->{points}->{$z} ) {
+		if( defined $self->{points}->{$z}->{$x} ) {
+			if( $maxy+2< $opts{TOP_OF_WORLD} ) {
+				my $stand_y = $maxy+1; 
+				my $sign_y = $maxy+2; 
+				$maxy+=2;
+				
+				$self->{world}->set_block( $x,$stand_y,$z, 5 ); # wood for it to stand on
+
+				my $xz_points = $self->{points}->{$z}->{$x};
+				my $text = join( ", ", @$xz_points );
+				$self->{world}->add_sign( $x,$sign_y,$z, $text );
+			}
+		}
 	}
 
 	my $biome = $bc->val( $context,"biome");

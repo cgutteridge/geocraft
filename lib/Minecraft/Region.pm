@@ -6,6 +6,8 @@ use strict;
 use warnings;
 use Data::Dumper;
 use POSIX;
+use JSON::PP;
+use utf8;
 
 #coordinates are relative to the region
 
@@ -210,6 +212,50 @@ sub set_light
 	substr( $section->{BlockLight}->{_value}, ($offset/2), 1 ) = chr($byte);
 
 	$self->{_changed} = 1;
+}
+
+sub add_sign
+{
+	my( $self,   $rel_x,$y,$rel_z, $x,$z, $text ) = @_;
+
+	my $SIGNWIDTH = 16;
+	my @lines = ();
+	while( length( $text ) )
+	{
+		$text =~ s/\s*$//;
+		$text =~ s/^\s*//;
+		my $line;
+		if( $text =~ m/^(.{1,16})(\s|$)/ ) {
+			$line = $1;
+		} else {
+			$line = substr( $text, 0, $SIGNWIDTH );	
+		}
+		push @lines, $line;
+		$text = substr( $text, length( $line ) );
+	}
+	$lines[0] = "" unless defined $lines[0];
+	$lines[1] = "" unless defined $lines[1];
+	$lines[2] = "" unless defined $lines[2];
+	$lines[3] = "" unless defined $lines[3];
+
+	$self->set_block( $rel_x,$y,$rel_z,  63 );
+	my $data = bless {
+		x => (bless { _name=>"x", _value=>$x }, 'Minecraft::NBT::Int'),
+		y => (bless { _name=>"y", _value=>$y }, 'Minecraft::NBT::Int'),
+		z => (bless { _name=>"z", _value=>$z }, 'Minecraft::NBT::Int'),
+		id => (bless { _name=>"id", _value=> "minecraft:sign" }, 'Minecraft::NBT::String'),
+		Text1 => (bless { _name=>"Text1", _value=> encode_json( { "bold"=>1, "text"=>"§l".$lines[0] } ) }, 'Minecraft::NBT::String'),
+		Text2 => (bless { _name=>"Text2", _value=> encode_json( { "bold"=>1, "text"=>"§l".$lines[1] } ) }, 'Minecraft::NBT::String'),
+		Text3 => (bless { _name=>"Text3", _value=> encode_json( { "bold"=>1, "text"=>"§l".$lines[2] } ) }, 'Minecraft::NBT::String'),
+		Text4 => (bless { _name=>"Text4", _value=> encode_json( { "bold"=>1, "text"=>"§l".$lines[3] } ) }, 'Minecraft::NBT::String'),
+	}, "Minecraft::NBT::Compound";
+
+print Dumper( $data );
+	# doing set_block above should force the chunk to exist
+	my( $chunk_x, $chunk_z ) = $self->chunk_xz($rel_x,$rel_z);
+	my $chunk = $self->{$chunk_z}->{$chunk_x}->{chunk};
+
+	push @{ $chunk->{Level}->{TileEntities}->{_value} }, $data;
 }
 
 sub set_block

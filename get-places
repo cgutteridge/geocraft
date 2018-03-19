@@ -1,0 +1,53 @@
+#!/usr/bin/perl
+
+use strict; 
+use warnings;
+
+use JSON::PP;
+use Data::Dumper;
+
+my $long1 = -3.53271;
+my $long2 = -3.52931;
+my $lat1 = 50.72105;
+my $lat2 = 50.72423;
+
+
+if( $lat1 > $lat2 ) { my $a=$lat1; $lat1=$lat2; $lat2=$a; }
+if( $long1 > $long2 ) { my $a=$long1; $long1=$long2; $long2=$a; }
+
+my $sparql=<<END;
+select distinct * where {
+?thing geo:lat ?lat .
+?thing geo:long ?long .
+?thing rdfs:label ?label .
+FILTER( LANG(?label) = 'en' )
+FILTER( ?long > $long1 && ?long < $long2 )
+FILTER( ?lat > $lat1 && ?lat < $lat2 )
+}
+END
+my $url = "http://dbpedia.org/sparql?default-graph-uri=http%3A%2F%2Fdbpedia.org&query=".urlencode($sparql)."&format=application%2Fsparql-results%2Bjson&CXML_redir_for_subjs=121&CXML_redir_for_hrefs=&timeout=30000&debug=on&run=+Run+Query+";
+my $json = `curl -s '$url' `;
+
+my $info = decode_json $json;
+
+foreach my $result ( @{ $info->{results}->{bindings} } )
+{
+	print $result->{lat}->{value};
+	print "\t";
+	print $result->{long}->{value};
+	print "\t";
+	print $result->{label}->{value};
+	print "\n";
+}
+
+exit;
+
+
+
+sub urlencode {
+    my $s = shift;
+    $s =~ s/ /+/g;
+    $s =~ s/([^A-Za-z0-9\+-])/sprintf("%%%02X", ord($1))/seg;
+    return $s;
+}
+

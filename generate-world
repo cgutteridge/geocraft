@@ -28,6 +28,7 @@ my $mapzoom;
 my $tiles;
 my $grid;
 my $mapcoords;
+my $pointsfile;
 
 BEGIN { 
 	sub load_config
@@ -52,6 +53,7 @@ BEGIN {
 		print "  --flood <n>\n";
 		print "  --blocks <file>\n";
 		print "  --colours <file>\n";
+		print "  --points <file> // a tsv with Lat<tab>Long<tab>Label \n";
 		print "  --elevation <plugin>\n";
 #		print "  --rotation <degrees>\n";
 		print "  --scale <factor> // 2.0 means block is 50cm. 0.5 means MC block is 2m\n";
@@ -80,6 +82,7 @@ BEGIN {
 		"elevation=s" => \$elevation_plugin,
 		"tile=s" => \$tiles,
 		"grid=s" => \$grid,
+		"points=s" => \$pointsfile,
 	)) {
 		print STDERR ("Error in command line arguments\n");
 		help();
@@ -144,6 +147,16 @@ $OPTS->{FLOOD} = 0;
 if( defined $flood ) { $OPTS->{FLOOD} = $flood; }
 
 
+my $points = [];
+if( $pointsfile ) {
+	open( my $pfh, "<", $pointsfile ) || die "can't read $pointsfile: $!";
+	while( my $line = readline($pfh) ) {
+		chomp $line;
+		my( @ll_lab  ) = split( /\t/, $line );
+		push @$points, \@ll_lab;
+	}
+}
+
 # goal is to end up with bottom left & top right corners in Easting/Northing
 
 if( defined $postcode ) 
@@ -156,10 +169,6 @@ if( defined $postcode )
 	$ll = 0;
 }
 
-sub mya
-{
-	return @_;
-}
 
 my( $e1,$e2,$n1,$n2 );
 my( $ANCHOR_E, $ANCHOR_N );
@@ -320,11 +329,20 @@ $OPTS->{ELEVATION} = "Elevation::$elevation_plugin"->new(
 );
 
 my $p = Minecraft::Projection->new( $world, 0,0, $ANCHOR_E,$ANCHOR_N, $grid, $rotate );
+if( @$points ) {
+	foreach my $point ( @$points ) {
+		$p->add_point_ll( @$point ); # lat,long,label
+	}
+}
 print "Projection created. MC0,0 = ${ANCHOR_E}E ${ANCHOR_N}N\n"; 
 
 $p->render( %$OPTS );
 print "Map rendered OK\n";
+
 exit;
+
+
+
 
 use JSON::PP;
 sub postcode_to_en

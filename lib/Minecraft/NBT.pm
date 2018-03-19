@@ -350,7 +350,7 @@ sub put_tag
 	elsif( ref($tag) eq "Minecraft::NBT::TagList" ) { $self->put_tag_list( $tag, $needs_name ); }
 	elsif( ref($tag) eq "Minecraft::NBT::Compound" ) { $self->put_tag_compound( $tag, $needs_name ); }
 	elsif( ref($tag) eq "Minecraft::NBT::IntArray" ) { $self->put_tag_int_array( $tag, $needs_name ); }
-	else { Carp::confess "Unknown tag type: ".ref($tag); }
+	else { Carp::confess "Unknown tag type: ".ref($tag)." '$tag'"; }
 }
 #1
 sub put_tag_byte
