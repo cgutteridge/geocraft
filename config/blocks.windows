@@ -22,10 +22,6 @@ $Minecraft::Config::BLOCKS = {
 		up_block => "18", # leaves
 		feature_filter => 0, # show low features
 	},
-	GRASS=>{ # dirt
-		up_block => "18", # leaves
-		feature_filter => 0, # show low features
-	},
 	GRASS=>{ # grass
 		up_block => "18", # leaves
 		feature_filter => 0, # show low features
