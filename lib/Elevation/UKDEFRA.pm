@@ -65,7 +65,7 @@ sub get_url
 {
 	my( $self, $url ) = @_;
 
-	my $cmd = "curl '$url'";
+	my $cmd = "curl -s '$url'";
 	print $cmd."\n";
 	my $data = `$cmd`;
 	return $data;
@@ -74,7 +74,7 @@ sub download_url
 {
 	my( $self, $url, $file ) = @_;
 
-	my $cmd = "curl '$url' > $file";
+	my $cmd = "curl -s '$url' > $file";
 	print $cmd."\n";
 	my $data = `$cmd`;
 	return $data;
