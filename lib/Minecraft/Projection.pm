@@ -397,11 +397,13 @@ sub render_xz
 	{
 		for( my $i=1; $i<=$opts{EXTEND_DOWNWARDS}; $i++ )
 		{
+			$context->{y_offset} = -$i;
 			$blocks->{-$i} = $bc->val( $context, "down_block", $blocks->{0} );
 		}
 		$bottom-=$opts{EXTEND_DOWNWARDS};
 	}
 
+	delete $context->{y_offset};
 	my $top = 0;
 	my $fmh = $bc->val( $context, "feature_min_height" );
 	if( defined $fmh && $fmh>$feature_height )
