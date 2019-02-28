@@ -13,20 +13,6 @@ use strict;
 use warnings;
 
 
-my $GRID = {
-'A'=>[ 0, 4 ], 'B'=>[ 1, 4 ], 'C'=>[ 2, 4 ], 'D'=>[ 3, 4 ], 'E'=>[ 4, 4 ],
-'F'=>[ 0, 3 ], 'G'=>[ 1, 3 ], 'H'=>[ 2, 3 ], 'J'=>[ 3, 3 ], 'K'=>[ 4, 3 ], 
-'L'=>[ 0, 2 ], 'M'=>[ 1, 2 ], 'N'=>[ 2, 2 ], 'O'=>[ 3, 2 ], 'P'=>[ 4, 2 ], 
-'Q'=>[ 0, 1 ], 'R'=>[ 1, 1 ], 'S'=>[ 2, 1 ], 'T'=>[ 3, 1 ], 'U'=>[ 4, 1 ], 
-'V'=>[ 0, 0 ], 'W'=>[ 1, 0 ], 'X'=>[ 2, 0 ], 'Y'=>[ 3, 0 ], 'Z'=>[ 4, 0 ], };
-
-my $RGRID = {};
-foreach my $code ( keys %$GRID ) {
-	my $en = $GRID->{$code};
-	$RGRID->{$en->[0].$en->[1]} = $code;
-}
-
-
 sub new 
 {
 	my( $class, $height_dir, $tmp_dir, $correction ) = @_;
@@ -61,6 +47,14 @@ sub new
 	return $self;
 }
 
+# from http://code.activestate.com/recipes/577450-perl-url-encode-and-decode/
+sub url_encode {
+	my $s = shift;
+	$s =~ s/ /+/g;
+	$s =~ s/([^A-Za-z0-9\+-])/sprintf("%%%02X", ord($1))/seg;
+	return $s;
+}
+
 sub get_url
 {
 	my( $self, $url ) = @_;
@@ -87,48 +81,116 @@ sub download
 
 	# LOAD CATALOGUE IF NEEDED
 
-	# calculate the outer tile
-	# which is offset by -2, -1 for who knows why?
-	my $e1 = POSIX::floor( $file_e/500000 )+2;
-	my $n1 = POSIX::floor( $file_n/500000 )+1;
-	my $g1 = $RGRID->{$e1.$n1};
-#print "($e1)($n1)($g1)\n";
-	my $e2 = POSIX::floor( ($file_e%500000)/100000 );
-	my $n2 = POSIX::floor( ($file_n%500000)/100000 );
-	my $g2 = $RGRID->{$e2.$n2};
-#print "($e2)($n2)($g2)\n";
-	my $e3 = POSIX::floor( ($file_e%100000)/10000 );
-	my $n3 =POSIX::floor( ($file_n%100000)/10000 );
-	my $url = "http://www.geostore.com/environment-agency/rest/product/OS_GB_10KM/$g1$g2$e3$n3?catalogName=Survey";
-
-	if( !$self->{loaded}->{$url} )
-	{
-		print "* $url\n";
-		my $json_text = $self->get_url( $url );
-		my $cat_record = decode_json( $json_text );
+	my $SCALE_EW = 5000;
+	my $SCALE_NS = 5000;
 	
-		$self->{zips}->{$url} = { DSM=>[], DTM=>[] };
-		foreach my $item ( @$cat_record )
-		{
-#			my $id = $item->{metaDataUrl};
-#			if( defined $id ) { 
-#				$id =~ s/1$//;
-#				$target->{DSM} = $item->{guid} if( $id eq "https://data.gov.uk/dataset/lidar-composite-dsm-1m" );
-#				$target->{DTM} = $item->{guid} if( $id eq "https://data.gov.uk/dataset/lidar-composite-dtm-1m" );
-#			}
-			push @{$self->{zips}->{$url}->{DSM}}, $item->{guid} if( $item->{pyramid} =~ m/^LIDAR-DSM-1M/ );
-			push @{$self->{zips}->{$url}->{DTM}}, $item->{guid} if( $item->{pyramid} =~ m/^LIDAR-DTM-1M/ );
+	# Work out the square to query
+	my $left   = POSIX::floor( $file_e / $SCALE_EW ) * $SCALE_EW;
+	my $bottom = POSIX::floor( $file_n / $SCALE_NS ) * $SCALE_NS;
+
+	my $code = "${left}E-${bottom}N";
+
+	my $catalog_cache_dir = $self->{height_dir}."/catalog";
+	if( !-d( $catalog_cache_dir ) ) {
+		mkdir( $catalog_cache_dir );
+	}
+
+	my $catalog_cache_file = $catalog_cache_dir."/$code.json";
+
+	if( -e $catalog_cache_file ) {
+		print "Using cached catalog: $catalog_cache_file\n";
+	} else {
+		print "Attempting to cache catalog: $catalog_cache_file\n";
+	
+		my $e1 = $left   + 50;
+		my $n1 = $bottom + 50;
+		my $e2 = $left   + $SCALE_EW - 50;
+		my $n2 = $bottom + $SCALE_NS - 50;
+	
+		my $aoi = {"geometryType"=>"esriGeometryPolygon","features"=>[{"geometry"=>{"rings"=>[[]],"spatialReference"=>{"wkid"=>27700,"latestWkid"=>27700}}}],"sr"=>{"wkid"=>27700,"latestWkid"=>27700}};
+		push @{$aoi->{features}->[0]->{geometry}->{rings}->[0]}, [ $e1, $n1 ];
+		push @{$aoi->{features}->[0]->{geometry}->{rings}->[0]}, [ $e2, $n1 ];
+		push @{$aoi->{features}->[0]->{geometry}->{rings}->[0]}, [ $e2, $n2 ];
+		push @{$aoi->{features}->[0]->{geometry}->{rings}->[0]}, [ $e1, $n2 ];
+		my $submit_job_url = "https://environment.data.gov.uk/arcgis/rest/services/gp/DataDownload/GPServer/DataDownload/submitJob?f=json&SourceToken=&OutputFormat=0&RequestMode=SURVEY&AOI=".url_encode(encode_json( $aoi ));
+		my $submit_job_response = $self->get_url( $submit_job_url );
+		my $submit_job = decode_json( $submit_job_response );
+		# we expect back: {"jobId":"jcc3fa88c8eba49db915cd7ff0c701774","jobStatus":"esriJobSubmitted"}
+		my $jobid = $submit_job->{jobId};
+		print "JOB:$jobid\n";
+	
+		my $JOB_WAIT_MAX = 60;
+		my $JOB_WAIT_INTERVAL = 3; # lets not hammer it too hard
+	
+		my $waiting = 0;
+		my $done = 0;
+		while( !$done && $waiting <= $JOB_WAIT_MAX ) {
+			sleep( $JOB_WAIT_INTERVAL );
+			$waiting += $JOB_WAIT_INTERVAL;
+			my $job_watch_url = "https://environment.data.gov.uk/arcgis/rest/services/gp/DataDownload/GPServer/DataDownload/jobs/$jobid?f=json"; #&dojo.preventCache=1550585729682
+			my $are_we_there_yet_response = $self->get_url( $job_watch_url );
+			my $are_we_there_yet = decode_json( $are_we_there_yet_response );
+			print "".$are_we_there_yet->{jobStatus}."\n";
+			$done=1 if( $are_we_there_yet->{jobStatus} eq "esriJobSucceeded" );
 		}
-		$self->{loaded}->{$url} = 1;
+	
+		if( !$done ) {
+			print "Request to job timed out after 60 seconds.\n";
+			return;
+		}
+	
+		my $job_output_url = "https://environment.data.gov.uk/arcgis/rest/services/gp/DataDownload/GPServer/DataDownload/jobs/$jobid/results/OutputResult?f=json"; #&dojo.preventCache=1550585729682
+		my $job_output_response = $self->get_url( $job_output_url );
+		my $job_output = decode_json( $job_output_response );
+	
+		my $cat_url = $job_output->{value}->{url};
+
+		$self->download_url( $cat_url, $catalog_cache_file );
+	}
+
+	if( !$self->{loaded}->{$catalog_cache_file} ) {
+		open( my $cat_fh, "<:utf8", $catalog_cache_file ) || die "Can't read $catalog_cache_file: $!";
+		my $catalog_raw = join( "", <$cat_fh> );
+		close $cat_fh;
+	
+		my $catalog = decode_json( $catalog_raw );
+		my $datasets = {};
+		foreach my $cdataset ( @{$catalog->{data}} ) {
+			my $dataset = {};
+			foreach my $cyear ( @{$cdataset->{years}} ) {
+				my $year = {};
+				foreach my $cres ( @{$cyear->{resolutions}} ) {
+					my $res = {};
+					foreach my $ctile ( @{$cres->{tiles}} ) {
+						$res->{$ctile->{tileName}} = $ctile->{url};
+					}
+					$year->{$cres->{resolutionName}} = $res;
+				}
+				$dataset->{$cyear->{year}} = $year;
+			}
+				
+			$datasets->{$cdataset->{productName}} = $dataset;
+		}
+
+		$self->{loaded}->{$catalog_cache_file}=1;
+
+		# later maybe look at years, but with luck composite will do
+		$self->{zips}->{$code} = { DSM=>[], DTM=>[] };
+		foreach my $model_i ( qw/ DSM DTM / ) {
+			foreach my $k ( keys %{$datasets->{"LIDAR Composite $model_i"}->{Latest}->{"$model_i 1M"}} ) {
+				push @{$self->{zips}->{$code}->{$model_i}}, $datasets->{"LIDAR Composite $model_i"}->{Latest}->{"$model_i 1M"}->{$k};
+			}
+		}
+print Dumper($self->{zips});
 	}
 
 	# keep trying packs until we get a hit for this file
-	if( scalar @{$self->{zips}->{$url}->{$model}} ) {
+	if( scalar @{$self->{zips}->{$code}->{$model}} ) {
 		# while there's still some untried zips and we don't have the file we need
-		while( scalar @{$self->{zips}->{$url}->{$model}} && !$self->{files}->{$model}->{ $file_n }->{ $file_e } ) {
-			print "TRYING NEXT OPTION for $file_e/$file_n. ".scalar @{$self->{zips}->{$url}->{$model}}." remain.\n";
-			my $zip_id = pop @{$self->{zips}->{$url}->{$model}};
-			$self->add_zip( 'http://www.geostore.com/environment-agency/rest/product/download/'.$zip_id, $model );
+		while( scalar @{$self->{zips}->{$code}->{$model}} && !$self->{files}->{$model}->{ $file_n }->{ $file_e } ) {
+			print "TRYING NEXT OPTION for $file_e/$file_n. ".scalar @{$self->{zips}->{$code}->{$model}}." remain.\n";
+			my $zip_url = shift @{$self->{zips}->{$code}->{$model}};
+			$self->add_zip( $zip_url, $model );
 		}
 	}
 	
@@ -299,19 +361,19 @@ sub cell_elevation
 	my @lines = <$hfh>;
 	close $hfh;
 	my $lidar = {};
-        for( my $i=0; $i<6; ++$i )
-        {
-                my $line = $lines[$i];
-                $line =~ s/[\n\r]//g;
-                if( $line =~ m/^([^\s]+)\s+(.*)$/ )
-                {
-                        $lidar->{uc $1} = $2;
-                }
-                else
-                {
-                        die "Bad line in .asc file: $line";
-                }
-        }
+	for( my $i=0; $i<6; ++$i )
+	{
+		my $line = $lines[$i];
+		$line =~ s/[\n\r]//g;
+		if( $line =~ m/^([^\s]+)\s+(.*)$/ )
+		{
+			$lidar->{uc $1} = $2;
+		}
+		else
+		{
+			die "Bad line in .asc file: $line";
+		}
+	}
 
 	for( my $i=6; $i<scalar(@lines); ++$i )
 	{
