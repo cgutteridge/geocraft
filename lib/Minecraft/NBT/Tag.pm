@@ -14,6 +14,7 @@ use Data::Dumper;
 @Minecraft::NBT::TagList::ISA = ( "Minecraft::NBT::Tag" );
 @Minecraft::NBT::Compound::ISA = ( "Minecraft::NBT::Tag" );
 @Minecraft::NBT::IntArray::ISA = ( "Minecraft::NBT::Tag" );
+@Minecraft::NBT::LongArray::ISA = ( "Minecraft::NBT::Tag" );
 
 sub v
 {
@@ -69,7 +70,17 @@ sub debug
 	my( $self, $depth, $path ) = @_;
 
 	print "  "x$depth;
-	print join(" ",@{$self->{_value}} )."\n";
+	print "int[".(scalar @{$self->{_value}})."] ".join(" ",@{$self->{_value}} )."\n";
+}
+
+package Minecraft::NBT::LongArray;
+
+sub debug
+{
+	my( $self, $depth, $path ) = @_;
+
+	print "  "x$depth;
+	print "long[".(scalar @{$self->{_value}})."] ".join(" ",@{$self->{_value}} )."\n";
 }
 
 package Minecraft::NBT::ByteArray;
