@@ -8,15 +8,21 @@ use Minecraft;
 
 use Data::Dumper;
 
-if( @ARGV != 3 )
+if( @ARGV != 3 && @ARGV != 1 )
 {
-	print "$0 <world> <x> <z>\n";
+	print "$0 <world> [<x> <z>]\n";
 	exit 1;
 }
 my( $worldname, $x,$z ) = @ARGV;
 
 my $mc = new Minecraft( "$FindBin::Bin/saves" );
 my $world = $mc->world( $worldname );
+if( !defined $x ) {
+	my $pos = $world->{level}->{Data}->{Player}->{Pos}->v;
+	$x = int($pos->[0]->v);
+	$z = int($pos->[2]->v);
+}
+
 my $region = $world->block_region( $x,0,$z );
 my( $rel_x,$rel_y,$rel_z ) = Minecraft::World::c( $x,0,$z);
 my( $chunk_x, $chunk_z ) = $region->chunk_xz($rel_x,$rel_z);
