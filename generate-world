@@ -271,7 +271,7 @@ if( -e "$FindBin::Bin/saves/$worldname" )
 	`rm -rf "$FindBin::Bin/saves/$worldname"`;
 }
 print "Cloning 'bedrock' as a base world\n";
-`cp -a "$FindBin::Bin/BedRock" "$FindBin::Bin/saves/$worldname"`;
+`cp -a "$FindBin::Bin/BedRock13" "$FindBin::Bin/saves/$worldname"`;
 
 print "Setting World Options\n";
 my $nbt = Minecraft::NBT->from_gzip_file( "$FindBin::Bin/saves/$worldname/level.dat" );
