@@ -2,8 +2,21 @@ package Minecraft::NBT;
 use IO::Uncompress::Gunzip qw(gunzip $GunzipError) ;
 use strict;
 use warnings;
+use Data::Dumper;
 
-sub from_file
+sub new_from_file
+{
+	my( $class, $filename ) = @_;
+
+	local $/ = undef;
+	open( my $fh, "<:bytes", $filename ) || die "failed to open $filename: $!";
+  	binmode $fh;
+  	my $bindata = <$fh>;
+  	close $fh;
+
+	return $class->new_from_bindata( $bindata );
+}
+sub new_from_gzip_file
 {
 	my( $class, $filename ) = @_;
 
@@ -12,44 +25,41 @@ sub from_file
   	binmode $fh;
   	my $data = <$fh>;
   	close $fh;
+	my $bindata;	
+	gunzip \$data => \$bindata;
 
-	return $class->from_string( $data );
-}
-sub from_gzip_file
-{
-	my( $class, $filename ) = @_;
-
-	local $/ = undef;
-	open( my $fh, "<:bytes", $filename ) || die "failed to open $filename: $!";
-  	binmode $fh;
-  	my $data = <$fh>;
-  	close $fh;
-	my $nbt_string;	
-	gunzip \$data => \$nbt_string;
-
-	return $class->from_string( $nbt_string );
+	return $class->new_from_bindata( $bindata );
 }
 
-sub from_string
+sub new_from_bindata
 {
-	my( $class, $data ) = @_;
+	my( $class, $bindata ) = @_;
 
 	my $self = bless {}, $class;
-	$self->{data} = $data;
+	$self->{data} = $bindata;
 	$self->{offset} = 0;
-	$self->{length} = length($data);
+	$self->{length} = length($bindata);
 
-	my $tag = $self->tag;
+	$self->{debug} = 0;
+
+	print "STARTING NBT PARSE (".$self->{length}.")\n" if $self->{debug};
+	my $tag = $self->next_tag;
 	if( $self->{offset} < $self->{length} ) 
 	{
 		die "Warning, reached end of initial compound with data left\n";
 	}
+	print "ENDED NBT PARSE (".$self->{length}.")\n" if $self->{debug};
+
+	# save RAM
+	delete $self->{data};
+	delete $self->{offset};
+	delete $self->{length};
 
 	return $tag;
 }
 
 # get basic values from stream
-sub get
+sub next_data
 {
 	my( $self, $n ) = @_;
 	if( $self->{offset} >= $self->{length} ) 
@@ -65,203 +75,215 @@ sub get
 	return $v;
 }
 # get values from stream and reverse them IF the system is littlendian
-sub gete
+sub next_data_sort_endian
 {
 	my( $self, $n ) = @_;
 
-	my $chars = $self->get( $n );
+	my $chars = $self->next_data( $n );
 
 	# assume little endian
 	return reverse $chars;
 }
 
 	
-sub byte
+sub next_byte
 {
 	my( $self ) = @_;
 	
-	return ord( $self->get(1) );
+	return ord( $self->next_data(1) );
 }
-sub string
+sub next_string
 {
 	my( $self ) = @_;
 
 	# unsigned int
-	my $length = unpack('n', $self->get(2) );
-	my $str =  $self->get($length);
+	my $length = unpack('n', $self->next_data(2) );
+	my $str =  $self->next_data($length);
 	# print "#'$str'\n";
 	return $str;
 }
-sub tag	
+sub next_tag	
 {
 	my( $self ) = @_;
 
-	my $type = $self->byte;
-	my $v = $self->typed_tag( $type,1 );
+	my $type = $self->next_byte;
+	my $v = $self->next_typed_tag( $type,1 );
 	return $v;
 }
-sub typed_tag
+sub next_typed_tag
 {
 	my( $self, $type, $needs_name ) = @_;
-# print "TAG: $type\n";
+	print "TAG: $type\n" if $self->{debug};
 	if( $type == 0 ) { return bless {}, "Minecraft::NBT::End"; }
-	if( $type == 1 ) { return $self->tag_byte( $needs_name ); }
-	if( $type == 2 ) { return $self->tag_short( $needs_name ); }
-	if( $type == 3 ) { return $self->tag_int( $needs_name ); }
-	if( $type == 4 ) { return $self->tag_long( $needs_name ); }
-	if( $type == 5 ) { return $self->tag_float( $needs_name ); }
-	if( $type == 6 ) { return $self->tag_double( $needs_name ); }
-	if( $type == 7 ) { return $self->tag_byte_array( $needs_name ); }
-	if( $type == 8 ) { return $self->tag_string( $needs_name ); }
-	if( $type == 9 ) { return $self->tag_list( $needs_name ); }
-	if( $type == 10 ) { return $self->tag_compound( $needs_name ); }
-	if( $type == 11 ) { return $self->tag_int_array( $needs_name ); }
-	if( $type == 12 ) { return $self->tag_long_array( $needs_name ); }
+	if( $type == 1 ) { return $self->next_tag_byte( $needs_name ); }
+	if( $type == 2 ) { return $self->next_tag_short( $needs_name ); }
+	if( $type == 3 ) { return $self->next_tag_int( $needs_name ); }
+	if( $type == 4 ) { return $self->next_tag_long( $needs_name ); }
+	if( $type == 5 ) { return $self->next_tag_float( $needs_name ); }
+	if( $type == 6 ) { return $self->next_tag_double( $needs_name ); }
+	if( $type == 7 ) { return $self->next_tag_byte_array( $needs_name ); }
+	if( $type == 8 ) { return $self->next_tag_string( $needs_name ); }
+	if( $type == 9 ) { return $self->next_tag_list( $needs_name ); }
+	if( $type == 10 ) { return $self->next_tag_compound( $needs_name ); }
+	if( $type == 11 ) { return $self->next_tag_int_array( $needs_name ); }
+	if( $type == 12 ) { return $self->next_tag_long_array( $needs_name ); }
 	die "Unknown tag type: $type at offset ".($self->{offset}-1)."\n";
 }
 #1
-sub tag_byte
+sub next_tag_byte
 {
 	my( $self, $needs_name ) = @_;
 
 	my $v = bless {}, "Minecraft::NBT::Byte";
-	$v->{_name} = $self->string if( $needs_name );
-	$v->{_value} = ord( $self->get(1) );
+	$v->{_name} = $self->next_string if( $needs_name );
+	$v->{_value} = ord( $self->next_data(1) );
 	return $v;
 }
 #2
-sub tag_short
+sub next_tag_short
 {
 	my( $self, $needs_name ) = @_;
 
 	my $v = bless {}, "Minecraft::NBT::Short";
-	$v->{_name} = $self->string if( $needs_name );
-	$v->{_value} = unpack('s', $self->gete(2) );
+	$v->{_name} = $self->next_string if( $needs_name );
+	$v->{_value} = unpack('s', $self->next_data_sort_endian(2) );
 	return $v;
 }
 #3
-sub tag_int
+sub next_tag_int
 {
 	my( $self, $needs_name ) = @_;
 
 	my $v = bless {}, "Minecraft::NBT::Int";
-	$v->{_name} = $self->string if( $needs_name );
-	$v->{_value} = unpack('l', $self->gete(4) );
+	$v->{_name} = $self->next_string if( $needs_name );
+	$v->{_value} = unpack('l', $self->next_data_sort_endian(4) );
 	return $v;
 }
 #4
-sub tag_long
+sub next_tag_long
 {
 	my( $self, $needs_name ) = @_;
 
 	my $v = bless {}, "Minecraft::NBT::Long";
-	$v->{_name} = $self->string if( $needs_name );
-	$v->{_value} = unpack('q', $self->gete(8) ); 
+	$v->{_name} = $self->next_string if( $needs_name );
+	$v->{_value} = unpack('q', $self->next_data_sort_endian(8) ); 
 	return $v;
 }
 #5
-sub tag_float
+sub next_tag_float
 {
 	my( $self, $needs_name ) = @_;
 
 	my $v = bless {}, "Minecraft::NBT::Float";
-	$v->{_name} = $self->string if( $needs_name );
-	$v->{_value} = unpack('f', $self->gete(4) );
+	$v->{_name} = $self->next_string if( $needs_name );
+	$v->{_value} = unpack('f', $self->next_data_sort_endian(4) );
 	return $v;
 }
 #6
-sub tag_double
+sub next_tag_double
 {
 	my( $self, $needs_name ) = @_;
 
 	my $v = bless {}, "Minecraft::NBT::Double";
-	$v->{_name} = $self->string if( $needs_name );
-	$v->{_value} = unpack('d', $self->gete(8) );
+	$v->{_name} = $self->next_string if( $needs_name );
+	$v->{_value} = unpack('d', $self->next_data_sort_endian(8) );
 	return $v;
 }
 #7
-sub tag_byte_array
+sub next_tag_byte_array
 {
 	my( $self, $needs_name ) = @_;
 
 	my $v = bless {}, "Minecraft::NBT::ByteArray";
-	$v->{_name} = $self->string if( $needs_name );
-	my $length = unpack('l', $self->gete(4) );
-	$v->{_value} = $self->get( $length );
+	$v->{_name} = $self->next_string if( $needs_name );
+	my $length = unpack('l', $self->next_data_sort_endian(4) );
+	$v->{_value} = $self->next_data( $length );
 	return $v;
 }
 #8
-sub tag_string
+sub next_tag_string
 {
 	my( $self, $needs_name ) = @_;
 
 	my $v = bless {}, "Minecraft::NBT::String";
-	$v->{_name} = $self->string if( $needs_name );
-	$v->{_value} = $self->string;
+	$v->{_name} = $self->next_string if( $needs_name );
+	$v->{_value} = $self->next_string;
 	return $v;
 }
 #9
-sub tag_list
+sub next_tag_list
 {
 	my( $self, $needs_name ) = @_;
 
 	my $v = bless {}, "Minecraft::NBT::TagList";
-	$v->{_name} = $self->string if( $needs_name );
-	$v->{_type} = $self->byte;
-	my $length = unpack('l', $self->gete(4) );
+	$v->{_name} = $self->next_string if( $needs_name );
+	$v->{_type} = $self->next_byte;
+	my $length = unpack('l', $self->next_data_sort_endian(4) );
 	$v->{_value} = [];
 	for( my $i=0; $i<$length; ++$i )
 	{
-		push @{$v->{_value}}, $self->typed_tag( $v->{_type},0 );
+		push @{$v->{_value}}, $self->next_typed_tag( $v->{_type},0 );
 	}
 	return $v;
 }
 #10
-sub tag_compound
+sub next_tag_compound
 {
 	my( $self, $needs_name ) = @_;
 
 	my $v = bless {}, "Minecraft::NBT::Compound";
-	$v->{_name} = $self->string if( $needs_name );
-	# print "COMPOUND TAG: ".$v->{_name}."\n";
+	$v->{_name} = $self->next_string if( $needs_name );
+        if( $self->{debug} ) {
+		if( $needs_name ) {
+			print "COMPOUND TAG: ".$v->{_name}."\n";
+		} else {
+			print "ANONYMOUS COMPOUND TAG\n";
+		}
+	}
 	while(1)
 	{
-		my $child = $self->tag;
+		my $child = $self->next_tag;
 		if( $child->isa( "Minecraft::NBT::End" ) )
 		{
-			# print "END COMPOUND TAG: ".$v->{_name}."\n";
+        		if( $self->{debug} ) {
+				if( $needs_name ) {
+					print "END COMPOUND TAG: ".$v->{_name}."\n";
+				} else {
+					print "END ANONYMOUS COMPOUND TAG\n";
+				}
+			}
 			return $v;
 		}
 		$v->{ $child->{_name} } = $child;
 	}
 }
 #11
-sub tag_int_array
+sub next_tag_int_array
 {
 	my( $self, $needs_name ) = @_;
 
 	my $v = bless {}, "Minecraft::NBT::IntArray";
-	$v->{_name} = $self->string if( $needs_name );
-	my $length = unpack('l', $self->gete(4) );
+	$v->{_name} = $self->next_string if( $needs_name );
+	my $length = unpack('l', $self->next_data_sort_endian(4) );
 	$v->{_value} = [];
 	for( my $i=0; $i<$length; ++$i )
 	{
-		push @{$v->{_value}}, unpack('l', $self->gete(4) );
+		push @{$v->{_value}}, unpack('l', $self->next_data_sort_endian(4) );
 	}
 	return $v;
 }
 #12
-sub tag_long_array
+sub next_tag_long_array
 {
 	my( $self, $needs_name ) = @_;
 
 	my $v = bless {}, "Minecraft::NBT::LongArray";
-	$v->{_name} = $self->string if( $needs_name );
-	my $length = unpack('l', $self->gete(4) );
+	$v->{_name} = $self->next_string if( $needs_name );
+	my $length = unpack('l', $self->next_data_sort_endian(4) );
 	$v->{_value} = [];
 	for( my $i=0; $i<$length; ++$i )
 	{
-		push @{$v->{_value}}, unpack('q', $self->gete(8) );
+		push @{$v->{_value}}, unpack('q', $self->next_data_sort_endian(8) );
 	}
 	return $v;
 }

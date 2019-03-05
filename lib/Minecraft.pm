@@ -4,9 +4,12 @@ use strict;
 use warnings;
 use Minecraft::NBT;
 use Minecraft::NBT::Tag;
+use Minecraft::Chunk;
+use Minecraft::Section;
 use Minecraft::Region;
 use Minecraft::World;
 use Minecraft::BlockTypes;
+use Minecraft::BlockState;
 
 sub new
 {

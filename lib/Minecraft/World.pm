@@ -54,11 +54,25 @@ sub get_block
 
 	return $self->block_region( $x,$y,$z )->get_block( c($x,$y,$z) );
 }
+
+# a,b is either 
+#    blockstate ref
+#    name,properties{}
+#    name
+# name without a colon will have minecraft: added as a prefix
 sub set_block
 {
-	my( $self,   $x,$y,$z, $id ) = @_;
+	my( $self,   $x,$y,$z, $a,$b ) = @_;
 
-	return $self->block_region( $x,$y,$z )->set_block( c($x,$y,$z), $id );
+	my $blockstate;
+	if( ref($a) eq "Minecraft::BlockState" ) {
+		$blockstate = $a;
+	} else {
+		$a = "minecraft:$a" unless $a =~ m/:/;
+		$b = {} unless defined $b;
+		$blockstate = Minecraft::BlockState->new($a,$b);
+	}
+	return $self->block_region( $x,$y,$z )->set_block( c($x,$y,$z), $blockstate );
 }
 sub add_sign
 {
@@ -147,7 +161,7 @@ sub save_level
 	my( $self ) = @_;
 
 	my $level_file = $self->{dir}."/level.dat";
-	my $buffer = $self->{level}->to_string();
+	my $buffer = $self->{level}->to_bindata();
 	gzip \$buffer => $level_file;
 	$self->{level}->{_changed} = 0;
 }
@@ -160,7 +174,7 @@ sub read_level
 	my $buffer;
 	gunzip $level_file => \$buffer;
 	$self->{level}->{_changed} = 0;
-	$self->{level} = Minecraft::NBT->from_string( $buffer );
+	$self->{level} = Minecraft::NBT->new_from_bindata( $buffer );
 }
 
 sub regions

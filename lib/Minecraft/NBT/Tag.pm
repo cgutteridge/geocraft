@@ -32,7 +32,9 @@ sub debug
 	my( $self, $depth, $path ) = @_;
 	$depth=0 if !defined $depth;
 	print "  "x$depth;
-	print $self->{_value}."\n";
+	print $self->{_value};
+	print "         [".ref($self)."]";
+	print "\n";
 }
 
 package Minecraft::NBT::Compound;
