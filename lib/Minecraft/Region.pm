@@ -178,7 +178,7 @@ sub chunk {
 
 	if( $create && !defined $self->{chunk}->{$chunk_z}->{$chunk_x} )
 	{
-		$self->add_chunk( $chunk_x, $chunk_z );
+		$self->{chunk}->{$chunk_z}->{$chunk_x} = Minecraft::Chunk->new( $chunk_x,$chunk_z, $self->{opts}  );
 		$self->{_changed} = 1;
 	}
 

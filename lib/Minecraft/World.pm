@@ -205,10 +205,10 @@ sub region
 		my $file = $self->{dir}."/region/r.$r_x.$r_z.mca";
 		if( -e $file )
 		{
-			print "LOADING REGION $r_x,$r_z .. ";
+			print "[LOADING REGION $r_x,$r_z]\n";
 			$self->{regions}->{$r_z}->{$r_x} = Minecraft::Region->from_file( $file, $r_x,$r_z );
 			$self->{regions}->{$r_z}->{$r_x}->{_changed} = 0;
-			print "done\n";
+			print "[DONE LOADING REGION $r_x,$r_z]\n";
 		}
 		else
 		{
@@ -224,7 +224,7 @@ sub init_region
 {
 	my( $self, $r_x, $r_z ) = @_;
 
-	print "INIT REGION $r_x,$r_z .. ";
+	print "[INIT REGION $r_x,$r_z]\n";
 
 	my %opts = %{$self->{opts}};
 	$opts{r_x} = $r_x;	
@@ -235,7 +235,7 @@ sub init_region
 		&{$self->{opts}->{init_region}}( $self->{regions}->{$r_z}->{$r_x}, $r_x, $r_z );
 	}
 	$self->{regions}->{$r_z}->{$r_x}->{_changed} = 1;
-	print "done\n";
+	print "[DONE INIT REGION $r_x,$r_z]\n";
 }
 
 1;
