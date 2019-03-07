@@ -68,8 +68,6 @@ sub set_block
 	if( ref($a) eq "Minecraft::BlockState" ) {
 		$blockstate = $a;
 	} else {
-		$a = "minecraft:$a" unless $a =~ m/:/;
-		$b = {} unless defined $b;
 		$blockstate = Minecraft::BlockState->new($a,$b);
 	}
 	return $self->block_region( $x,$y,$z )->set_block( c($x,$y,$z), $blockstate );
@@ -133,11 +131,11 @@ sub save
 			if( $self->{regions}->{$r_z}->{$r_x}->{_changed} )
 			{
 				my $filename = "r.$r_x.$r_z.mca";
-				print "SAVING REGION $filename .. ";
+				print "[SAVING REGION $filename]\n";
 				$self->{regions}->{$r_z}->{$r_x}->to_file( $self->{dir}."/region/$filename" ); 
 				$self->{regions}->{$r_z}->{$r_x}->{_changed} = 0;
 				$acted = 1;
-				print "done\n";
+				print "[done SAVING REGION $filename]\n";
 			}
 		}
 	}

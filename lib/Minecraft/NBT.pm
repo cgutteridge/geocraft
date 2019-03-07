@@ -302,7 +302,7 @@ sub to_file
 {
 	my( $self, $filename ) = @_;
 
-	my $out = $self->to_string();
+	my $out = $self->to_bindata();
 	open( my $fh, ">:bytes", $filename ) || die "failed to write $filename: $!";
   	binmode $fh;
 	syswrite( $fh, $out );
@@ -312,7 +312,7 @@ sub to_gzip_file
 {
 	my( $self, $filename ) = @_;
 
-	my $out = $self->to_string();
+	my $out = $self->to_bindata();
 	my $zipped;
 	gzip \$out=>\$zipped;
 
@@ -323,7 +323,7 @@ sub to_gzip_file
 }
 
 
-sub to_string
+sub to_bindata
 {
 	my( $self ) = @_;
 
@@ -367,7 +367,7 @@ sub put_string
 {
 	my( $self, $string ) = @_;
 
-	# unsigned int
+	# unsigned int of strlen
 	$self->put( pack( 'n', length($string) ) );
 	$self->put( $string );
 }
@@ -497,6 +497,7 @@ sub put_tag_compound
 	foreach my $key ( keys %{$tag} )
 	{
 		next if $key =~ m/^_/;
+print "($key)\n";
 		$self->put_tag( $tag->{$key}, 1 );
 	}
 	$self->put_byte(0); # End tag.

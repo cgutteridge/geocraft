@@ -400,7 +400,8 @@ sub to_bindata
 				next X;
 			}
 			my $chunk = $self->{chunk}->{$c_z}->{$c_x};
-			my $chunk_time = $chunk->time();
+			#my $chunk_time = $chunk->time();
+			my $chunk_time = time();
 			my $chunk_nbt = $chunk->to_bindata();
 			my $c_zcomp = compress( $chunk_nbt );
 			my $length = length( $c_zcomp )+1;
