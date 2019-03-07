@@ -1,0 +1,33 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+use FindBin;
+use lib "$FindBin::Bin/lib";
+use Minecraft;
+
+use Data::Dumper;
+
+if( @ARGV != 4 && @ARGV != 1 )
+{
+	print "$0 <world> [<x> <y> <z>]\n";
+	exit 1;
+}
+my( $worldname, $x,$y,$z ) = @ARGV;
+
+my $mc = new Minecraft( "$FindBin::Bin/saves" );
+my $world = $mc->world( $worldname );
+if( !defined $x ) {
+	my $pos = $world->{level}->{Data}->{Player}->{Pos}->v;
+	$x = int($pos->[0]->v);
+	$y = int($pos->[1]->v);
+	$z = int($pos->[2]->v);
+}
+
+my $region = $world->block_region( $x,0,$z );
+my( $rel_x,$rel_y,$rel_z ) = Minecraft::World::c( $x,$y,$z);
+my $chunk = $region->chunk( $rel_x,$rel_z );
+my $section = $chunk->block_section( $rel_y );
+$section->debug;
+exit;
+

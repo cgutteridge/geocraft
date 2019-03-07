@@ -1,0 +1,58 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+use FindBin;
+use lib "$FindBin::Bin/lib";
+use Minecraft;
+
+use Data::Dumper;
+
+my $worldname = "WRITETEST";
+if( -e "$FindBin::Bin/saves/$worldname" )
+{
+	`rm -rf "$FindBin::Bin/saves/$worldname"`;
+}
+print "Cloning 'bedrock' as a base world\n";
+`cp -a "$FindBin::Bin/BedRock13" "$FindBin::Bin/saves/$worldname"`;
+
+my $mc = new Minecraft( "$FindBin::Bin/saves" );
+my $world = $mc->world( $worldname );
+
+$world->set_block( 3,3,3, "diamond_ore" );
+$world->set_block( 3,3,4, "iron_ore" );
+$world->set_block( 3,3,5, "gold_ore" );
+$world->set_block( 3,4,3, "red_wool" );
+$world->set_block( 3,5,3, "blue_wool" );
+$world->set_block( 4,3,3, "orange_wool" );
+$world->set_block( 5,3,3, "green_wool" );
+$world->set_block( 9,1,1, "white_terracotta");
+$world->set_block( 9,1,2, "orange_terracotta");
+$world->set_block( 9,1,3, "magenta_terracotta");
+$world->set_block( 9,1,4, "light_blue_terracotta");
+$world->set_block( 9,1,5, "yellow_terracotta");
+$world->set_block( 9,1,6, "lime_terracotta");
+$world->set_block( 9,1,7, "pink_terracotta");
+$world->set_block( 9,1,8, "gray_terracotta");
+$world->set_block( 9,1,9, "light_gray_terracotta");
+$world->set_block( 9,1,10, "cyan_terracotta");
+$world->set_block( 9,1,11, "purple_terracotta");
+$world->set_block( 9,1,12, "blue_terracotta");
+$world->set_block( 9,1,13, "brown_terracotta");
+$world->set_block( 9,1,14, "green_terracotta");
+$world->set_block( 9,1,15, "red_terracotta");
+$world->set_block( 9,1,0, "black_terracotta");
+
+my $region = $world->block_region( 3,3,3);
+my( $rel_x,$rel_y,$rel_z ) = Minecraft::World::c( 3,3,3);
+my $chunk = $region->chunk( $rel_x,$rel_z );
+my $section = $chunk->block_section( $rel_y );
+$section->debug;
+$world->save;
+print "Setting World Options\n";
+my $nbt = Minecraft::NBT->from_gzip_file( "$FindBin::Bin/saves/$worldname/level.dat" );
+$nbt->{Data}->{LevelName}->{_value} = $worldname;
+$nbt->{Data}->{LastPlayed}->{_value} = time()."000";
+$nbt->to_gzip_file( "$FindBin::Bin/saves/$worldname/level.dat" );
+exit;
+
