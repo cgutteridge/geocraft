@@ -11,6 +11,11 @@ my $long2 = -3.52931;
 my $lat1 = 50.72105;
 my $lat2 = 50.72423;
 
+$long1=-1.610752;
+$lat1=50.781304;
+$long2=-1.036118;
+$lat2= 50.558489;
+
 
 if( $lat1 > $lat2 ) { my $a=$lat1; $lat1=$lat2; $lat2=$a; }
 if( $long1 > $long2 ) { my $a=$long1; $long1=$long2; $long2=$a; }

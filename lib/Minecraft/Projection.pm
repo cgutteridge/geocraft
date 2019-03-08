@@ -9,34 +9,41 @@ use Carp;
 use strict;
 use warnings;
 
-sub new_from_ll
-{
-	my( $class, $world, $mc_ref_x,$mc_ref_z, $lat,$long, $grid, $rotate ) = @_;
-
-	my( $e, $n ) = ll_to_grid( $lat,$long, $grid, $rotate );
-print "new world, base: $e,$n\n";
-
-	return $class->new( $world, $mc_ref_x,$mc_ref_z,  $e,$n,  $grid, $rotate );
-}
-
 my $ZOOM = 18;
 my $M_PER_PIX = 0.596;
 my $TILE_W = 256;
 my $TILE_H = 256;
+my $SQUARE_SIZE = 512;
+
+sub new
+{
+# change to setting an offset instead.
+# change to take opts 
+	my( $class, $world, $opts ) = @_;
+
+	my $self = bless {},$class;
+	$self->{world} = $world;
+	$self->{points} = {};
+	$self->{opts} = $opts;
+
+	return $self;
+}
+
+
 sub ll_to_grid
 {
-	my( $lat, $long, $grid, $rotate ) = @_;
+	my( $self, $lat, $long ) = @_;
 	# print "ll_to_grid($lat,$long)\n";
 
 	my( $e, $n );
 
-	if( defined $grid && $grid eq "MERC" )
+	if( defined $self->{opts}->{GRID} && $self->{opts}->{GRID} eq "MERC" )
 	{
 		# inverting north/south for some reason -- seems to work
 		$e = ($long+180)/360 * 2**$ZOOM * ($TILE_W * $M_PER_PIX);	
 		$n = -(1 - log(tan(deg2rad($lat)) + sec(deg2rad($lat)))/pi)/2 * 2**$ZOOM * ($TILE_H * $M_PER_PIX);
 	}
-	elsif( defined $grid && $grid eq "OSGB36" )
+	elsif( defined $self->{opts}->{GRID} && $self->{opts}->{GRID} eq "OSGB36" )
 	{
 		my ($x, $y) = Geo::Coordinates::OSGB::ll_to_grid($lat, $long, 'ETRS89'); # or 'WGS84'
 		( $e,$n)= Geo::Coordinates::OSTN02::ETRS89_to_OSGB36($x, $y );
@@ -44,12 +51,12 @@ sub ll_to_grid
 	}
 	else
 	{
-		( $e, $n ) =  Geo::Coordinates::OSGB::ll_to_grid( $lat,$long, $grid );
+		( $e, $n ) =  Geo::Coordinates::OSGB::ll_to_grid( $lat,$long, $self->{opts}->{GRID} );
 	}
 
-	if( defined $rotate && $rotate != 0 ) 
+	if( defined $self->{opts}->{ROTATE} && $self->{opts}->{ROTATE} != 0 ) 
 	{
-		my $ang = $rotate * 2 * pi / 360;
+		my $ang = $self->{opts}->{ROTATE} * 2 * pi / 360;
 
 		return( $e*cos($ang) - $n*sin($ang), $e*sin($ang) + $n*cos($ang) );
 	}
@@ -59,49 +66,33 @@ sub ll_to_grid
 
 sub grid_to_ll
 {
-	my( $e, $n, $grid, $rotate ) = @_;
+	my( $self, $e, $n ) = @_;
 
-	if( defined $rotate && $rotate != 0 ) 
+	if( defined $self->{opts}->{ROTATE} && $self->{opts}->{ROTATE} != 0 ) 
 	{
-		my $ang = $rotate * 2 * pi / 360;
+		my $ang = $self->{opts}->{ROTATE} * 2 * pi / 360;
 		($e, $n) = ( $e*cos(-$ang) - $n*sin(-$ang), $e*sin(-$ang) + $n*cos(-$ang) );
 	}
 
-	if( defined $grid && $grid eq "MERC" )
+	if( defined $self->{opts}->{GRID} && $self->{opts}->{GRID} eq "MERC" )
 	{
 		my $lat = rad2deg(atan(sinh( pi - (2 * pi * -$n / (2**$ZOOM * ($TILE_H * $M_PER_PIX))) )));
 		my $long = (($e / ($TILE_W * $M_PER_PIX)) / 2**$ZOOM)*360-180;
 		return( $lat, $long );
 	}
-	if( defined $grid && $grid eq "OSGB36" )
+	if( defined $self->{opts}->{GRID} && $self->{opts}->{GRID} eq "OSGB36" )
 	{
 		my( $x,$y)= Geo::Coordinates::OSTN02::OSGB36_to_ETRS89($e, $n );
 		return Geo::Coordinates::OSGB::grid_to_ll($x, $y, 'ETRS89'); # or 'WGS84'
 	}
 
 
-	return Geo::Coordinates::OSGB::grid_to_ll( $e,$n, $grid );
+	return Geo::Coordinates::OSGB::grid_to_ll( $e,$n, $self->{opts}->{GRID} );
 }
 
 
 
 
-sub new
-{
-	my( $class, $world, $mc_ref_x,$mc_ref_z,  $e,$n,  $grid, $rotate ) = @_;
-
-	my $self = bless {},$class;
-	$self->{grid} = $grid;
-	$self->{world} = $world;
-	$self->{rotate} = $rotate||0;
-
-	# the real world E & N at MC 0,0
-	$self->{offset_e} = $e-$mc_ref_x;
-	$self->{offset_n} = $n+$mc_ref_z;
-	$self->{points} = {};
-
-	return $self;
-}
 
 # more mc_x : more easting
 # more mc_y : less northing
@@ -110,7 +101,7 @@ sub add_point_ll
 {
 	my( $self, $lat,$long, $label ) = @_;
 
-	my( $e, $n ) = ll_to_grid( $lat,$long, $self->{grid}, $self->{rotate} );
+	my( $e, $n ) = $self->ll_to_grid( $lat,$long );
 
 	$self->add_point_en( $e, $n, $label );
 }
@@ -119,8 +110,8 @@ sub add_point_en
 {
 	my( $self, $e,$n, $label ) = @_;
 
-	my $actual_x = $e - $self->{offset_e};
-	my $actual_z = -$n + $self->{offset_n};
+	my $actual_x = $e - $self->{OFFSET_E};
+	my $actual_z = -$n + $self->{OFFSET_N};
 
 	# can't cope with scale being set as it's given to render. It should belong to projection, like rotate does.	
 #	if( $opts{SCALE} ) {
@@ -158,32 +149,29 @@ sub context
 		$transformed_z = $transformed_z / $opts{SCALE};
 	}
 	
-	my $e = $self->{offset_e} + $transformed_x;
-	my $n = $self->{offset_n} - $transformed_z;
+	my $e = $self->{OFFSET_E} + $transformed_x;
+	my $n = $self->{OFFSET_N} - $transformed_z;
 
-	my($lat,$long) = grid_to_ll( $e, $n, $self->{grid}, $self->{rotate} );
+	my($lat,$long) = $self->grid_to_ll( $e, $n );
 
 	my $el = 0;
 	my $feature_height = 0;
 
-	if( $opts{ELEVATION} )
-	{	
-		my $dsm = $opts{ELEVATION}->ll( "DSM", $lat, $long );
-		my $dtm = $opts{ELEVATION}->ll( "DTM", $lat, $long );
-		if( defined $dsm && defined $opts{SCALE} )
-		{
-			$dsm = $dsm * $opts{SCALE};
-		}
-		if( defined $dtm && defined $opts{SCALE} )
-		{
-			$dtm = $dtm * $opts{SCALE};
-		}
-		$el = $dtm;
-		$el = $dsm if( !defined $el );
-		if( defined $dsm && defined $dtm )
-		{
-			$feature_height = int($dsm-$dtm);
-		}
+	my $dsm = $self->elevation->ll( "DSM", $lat, $long );
+	my $dtm = $self->elevation->ll( "DTM", $lat, $long );
+	if( defined $dsm && defined $opts{SCALE} )
+	{
+		$dsm = $dsm * $opts{SCALE};
+	}
+	if( defined $dtm && defined $opts{SCALE} )
+	{
+		$dtm = $dtm * $opts{SCALE};
+	}
+	$el = $dtm;
+	$el = $dsm if( !defined $el );
+	if( defined $dsm && defined $dtm )
+	{
+		$feature_height = int($dsm-$dtm);
 	}
 	
 	my $block = "DEFAULT"; # default to stone
@@ -226,7 +214,7 @@ sub duration
 	return sprintf( "%d:%02d:%02d", $hours,$minutes,$seconds );
 }
 
-sub render
+sub configure
 {
 	my( $self, %opts ) = @_;
 
@@ -235,66 +223,115 @@ sub render
 	die "missing coords NORTH1" if( !defined $opts{NORTH1} );
 	die "missing coords NORTH2" if( !defined $opts{NORTH2} );
 
-	my( $WEST, $EAST )  = ( $opts{EAST1}, $opts{EAST2} );
-	my( $SOUTH,$NORTH ) = ( $opts{NORTH1},$opts{NORTH2} );
+	$self->{opts} = \%opts;
 
-	if( $EAST < $WEST ) { ( $EAST,$WEST ) = ( $WEST,$EAST ); }
-	if( $NORTH < $SOUTH ) { ( $NORTH,$SOUTH ) = ( $SOUTH,$NORTH ); }
+	( $self->{opts}->{WEST}, $self->{opts}->{EAST} )  = ( $self->{opts}{EAST1}, $self->{opts}{EAST2} );
+	( $self->{opts}->{SOUTH},$self->{opts}->{NORTH} ) = ( $self->{opts}{NORTH1},$self->{opts}{NORTH2} );
 
-	if( $opts{ELEVATION} && defined $opts{SCALE} && $opts{SCALE}>1 )
+	if( $self->{opts}->{EAST} < $self->{opts}->{WEST} ) { ( $self->{opts}->{EAST},$self->{opts}->{WEST} ) = ( $self->{opts}->{WEST},$self->{opts}->{EAST} ); }
+	if( $self->{opts}->{NORTH} < $self->{opts}->{SOUTH} ) { ( $self->{opts}->{NORTH},$self->{opts}->{SOUTH} ) = ( $self->{opts}->{SOUTH},$self->{opts}->{NORTH} ); }
+
+	$self->init_elevation();
+	if( $self->{opts}->{ELEVATION} && defined $self->{opts}->{SCALE} && $self->{opts}->{SCALE}>1 )
 	{	
-		my($lat,$long) = grid_to_ll( $self->{offset_e}, $self->{offset_n}, $self->{grid}, $self->{rotate});
-		my $dtm = $opts{ELEVATION}->ll( "DTM", $lat, $long );
-		$opts{YSHIFT} -= $dtm * ( $opts{SCALE}-1 );
+		my($lat,$long) = $self->grid_to_ll( $self->{opts}->{OFFSET_E}, $self->{opts}->{OFFSET_N} );
+		my $dtm = $self->{opts}->{ELEVATION}->ll( "DTM", $lat, $long );
+		$self->{opts}->{YSHIFT} -= $dtm * ( $self->{opts}->{SCALE}-1 );
+		delete $self->{opts}->{ELEVATION};
 	}
 
-	my $SEALEVEL = 2;
-	if( $opts{EXTEND_DOWNWARDS} )
+	$self->{opts}->{SEA_LEVEL} = 2;
+	if( $self->{opts}->{EXTEND_DOWNWARDS} )
 	{	
-		$SEALEVEL+=$opts{EXTEND_DOWNWARDS};
+		$self->{opts}->{SEA_LEVEL}+=$self->{opts}->{EXTEND_DOWNWARDS};
 	}
-	if( $opts{YSHIFT} )
+	if( $self->{opts}->{YSHIFT} )
 	{	
-		$SEALEVEL+=$opts{YSHIFT};
+		$self->{opts}->{SEA_LEVEL}+=$self->{opts}->{YSHIFT};
 	}
 
-	$self->{start} = time();
-	my $BCONFIG = {};
-	foreach my $id ( keys %{$opts{BLOCKS}} )
+	
+	$self->{opts}->{REGIONS}->{TODO} = {};
+	for( my $z=$self->{opts}->{SOUTH}-($self->{opts}->{SOUTH} % $SQUARE_SIZE); $z<$self->{opts}->{NORTH}; $z+=$SQUARE_SIZE ) 
 	{
-		my %default = %{$opts{BLOCKS}->{DEFAULT}};
-		$BCONFIG->{$id} = \%default;
-		bless $BCONFIG->{$id}, "Minecraft::Projection::BlockConfig";
-		foreach my $field ( keys %{$opts{BLOCKS}->{$id}} )
+		for( my $x=$self->{opts}->{WEST}-($self->{opts}->{WEST} % $SQUARE_SIZE); $x<$self->{opts}->{EAST}; $x+=$SQUARE_SIZE )
 		{
-			$BCONFIG->{$id}->{$field} = $opts{BLOCKS}->{$id}->{$field};
-		}	
-	}
-
-	my $SQUARE_SIZE = 512;
-	my @squares = ();
-	for( my $z=$SOUTH-($SOUTH % $SQUARE_SIZE); $z<$NORTH; $z+=$SQUARE_SIZE ) 
-	{
-		for( my $x=$WEST-($WEST % $SQUARE_SIZE); $x<$EAST; $x+=$SQUARE_SIZE )
-		{
-			push @squares, [$x,$z];
+			$self->{opts}->{REGIONS}->{"$x,$z"} = {x=>$x, z=>$z, status=>"todo"};
 		}
 	}
 
+	# save config
+	$self->write_status;
+}
+
+sub write_status {
+	my( $self ) = @_;
+
+	print STDERR "TODO: write_status\n";
+}
+
+sub elevation {
+	my( $self ) = @_;
+
+	if( !defined $self->{elevation} ) {
+		my $elevation_class = "Elevation::".$self->{opts}->{ELEVATION_PLUGIN};
+		my $rc = eval "use $elevation_class; 1;";
+		if( !$rc ) {
+			die "Error in loading elevation; $@";
+		}
+		$self->{elevation} = $elevation_class->new( 
+			"$FindBin::Bin/var/lidar", 
+			"$FindBin::Bin/var/tmp", 
+		);
+	}
+	return $self->{elevation};
+}
+
+sub continue {
+	my( $self ) = @_;
+	# load config
+
+	# set autoflush to show every dot as it appears.
 	my $old_fh = select(STDOUT);
 	$| = 1;
 	select($old_fh); 
-			
-	my $SQ_COUNT = scalar @squares;
-	while( scalar @squares ) {
+
+	# load config and status
+	$self->load_status();
+	 
+	$self->{blocks_config} = {};
+	foreach my $id ( keys %{$Minecraft::Config::BLOCKS} ) 
+	{
+		my %default = %{$Minecraft::Config::BLOCKS->{DEFAULT}};
+		$self->{blocks_config}->{$id} = \%default;
+		bless $self->{blocks_config}->{$id}, "Minecraft::Projection::BlockConfig";
+		foreach my $field ( keys %{$self->{opts}->{BLOCKS}->{$id}} )
+		{
+			$self->{blocks_config}->{$id}->{$field} = $self->{opts}->{BLOCKS}->{$id}->{$field};
+		}	
+	}
+
+	# do square
+	my @todo = ();
+	foreach my $k ( keys %{$self->{opts}->{REGIONS}} ) {
+		my $region = $self->{opts}->{REGIONS}->{$k};
+		if( !defined $region->{status} || $region->{status} eq "todo" ) {
+			push @todo, $k; 
+		}
+	}	
+#			$self->{opts}->{REGIONS}->{"$x,$z"} = {x=>$x, z=>$z, status=>"todo"};
+	my $todo_at_start_count = scalar @todo;
+	while( scalar @todo ) {
+		my $region_id = shift @todo;
+		my $region_info = $self->{opts}->{REGIONS}->{$region_id};
+
 		my $start_t = time();
-		my $sq = shift @squares;
-		print "Doing: #".($SQ_COUNT-scalar @squares)." of $SQ_COUNT areas of ${SQUARE_SIZE}x${SQUARE_SIZE} at ".$sq->[0].",".$sq->[1];
-		for( my $z=$sq->[1]; $z<$sq->[1]+$SQUARE_SIZE; ++$z ) {
-			next if( $z>$NORTH || $z<$SOUTH );
-			for( my $x=$sq->[0]; $x<$sq->[0]+$SQUARE_SIZE; ++$x ) {
-				next if( $x<$WEST || $x>$EAST );
-				$self->render_xz( $x,$z, $SEALEVEL, $BCONFIG, %opts );
+		print "Doing: #".($todo_at_start_count-scalar @todo)." of $todo_at_start_count areas of ${SQUARE_SIZE}x${SQUARE_SIZE} at ".$region_info->{x}.",".$region_info->{z}."\n";
+		for( my $z=$region_info->{z}; $z<$region_info->{z}+$SQUARE_SIZE; ++$z ) {
+			next if( $z>$self->{opts}->{NORTH} || $z<$self->{opts}->{SOUTH} );
+			for( my $x=$region_info->{x}; $x<$region_info->{x}+$SQUARE_SIZE; ++$x ) {
+				next if( $x<$self->{opts}->{WEST} || $x>$self->{opts}->{EAST} );
+				$self->render_xz( $x,$z );
 			}
 			print ".";
 		}		
@@ -302,28 +339,18 @@ sub render
 		print "\n";
 		$self->{world}->save(); 
 		$self->{world}->uncache(); 
+		if( $self->{opts}->{WEST} <= $region_info->{x} 
+		 && $self->{opts}->{EAST} >= $region_info->{x}+$SQUARE_SIZE-1 
+		 && $self->{opts}->{NORTH} <= $region_info->{z}
+		 && $self->{opts}->{SOUTH} >= $region_info->{z}+$SQUARE_SIZE-1 ) {
+			$region_info->{status} = "partial";
+		} else {
+			$region_info->{status} = "complete";
+		}
+		$region_info->{timestamp} = time();
+		$self->write_status;
 	}
 
-#	for( my $z=$SOUTH; $z<=$NORTH; ++$z ) 
-#	{
-#		my $ratio = ($z-$SOUTH)/($NORTH-$SOUTH+1);
-#		my $spent = time()-$self->{start};
-#		
-#		print sprintf( "ROW: %d..%dE,%dN", $WEST,$EAST,$z );
-#		if( $ratio > 0 && $ratio < 1 )
-#		{
-#			my $remaining = $spent / $ratio * (1-$ratio);
-#			print sprintf( ".. %d%% %s remaining", int(100*$ratio), duration( $remaining ) );
-#		}
-#		print "\n";
-#		for( my $x=$WEST; $x<=$EAST; ++$x )
-#		{
-#			$self->render_xz( $x,$z, $SEALEVEL, $BCONFIG, %opts );
-#			$block_count++;
-#			if( $block_count % (256*256) == 0 ) { $self->{world}->save(); }
-#		}
-#	}			
-#	$self->{world}->save(); 
 }
 
 my $TYPE_DEFAULT = {
@@ -347,21 +374,21 @@ AREA7=>1,
 
 sub render_xz
 {
-	my( $self, $x,$z, $SEALEVEL, $BCONFIG, %opts ) = @_;
+	my( $self, $x,$z ) = @_;
 
-	my $context = $self->context( $x, $z, %opts );
+	my $context = $self->context( $x, $z );
 	my $block = $context->{block};
 	my $el = $context->{elevation};
 	my $feature_height = $context->{feature_height};
 
 
-	# we now have $block, $el, $SEALEVEL and $feature_height
+	# we now have $block, $el, $SEA_LEVEL and $feature_height
 	# that's enough to work out what to place at this location
 
 	# config options based on value of block
 
-	my $bc = $BCONFIG->{$block};
-	$bc = $BCONFIG->{DEFAULT} if !defined $bc;
+	my $bc = $Minecraft::Config::BLOCKS->{$block};
+	$bc = $Minecraft::Config::BLOCKS->{DEFAULT} if !defined $bc;
 	if( !defined $bc) { die "No DEFAULT block"; }
 
 	if( $bc->{look_around} ) {
@@ -372,7 +399,7 @@ sub render_xz
 			east=>{ x=>1, z=>0 },
 		};
 		foreach my $dir ( qw/ north south east west / ) { 
-			$context->{$dir} = $self->context( $x+$dirmap->{$dir}->{x}, $z+$dirmap->{$dir}->{z}, %opts );
+			$context->{$dir} = $self->context( $x+$dirmap->{$dir}->{x}, $z+$dirmap->{$dir}->{z}, %{$self->{opts}} );
 		}
 	}
 
@@ -393,13 +420,13 @@ sub render_xz
 	$blocks->{0} = $bc->val( $context, "block", $default );
 
 	my $bottom=0;
-	if( defined $opts{EXTEND_DOWNWARDS} )
+	if( defined $self->{opts}->{EXTEND_DOWNWARDS} )
 	{
-		for( my $i=1; $i<=$opts{EXTEND_DOWNWARDS}; $i++ )
+		for( my $i=1; $i<=$self->{opts}->{EXTEND_DOWNWARDS}; $i++ )
 		{
 			$blocks->{-$i} = $bc->val( $context, "down_block", $blocks->{0} );
 		}
-		$bottom-=$opts{EXTEND_DOWNWARDS};
+		$bottom-=$self->{opts}->{EXTEND_DOWNWARDS};
 	}
 
 	my $top = 0;
@@ -441,13 +468,13 @@ sub render_xz
 	$v = $bc->val( $context,"over_block"); 
 	if( defined $v ) { $blocks->{$top+1} = $v; }
 
-	if( $opts{FLOOD} )
+	if( $self->{opts}->{FLOOD} )
 	{
-		for( my $i=1; $i<=$opts{FLOOD}; $i++ )
+		for( my $i=1; $i<=$self->{opts}->{FLOOD}; $i++ )
 		{
 			$context->{y_offset} = $i; # not currently used
 			my $block_el = $el+$i;
-			if( $el+$i <= $opts{FLOOD} && (!defined $blocks->{$i} || $blocks->{$i}==0 ))
+			if( $el+$i <= $self->{opts}->{FLOOD} && (!defined $blocks->{$i} || $blocks->{$i}==0 ))
 			{
 				$blocks->{$i} = 9; # water, obvs.
 			}
@@ -457,15 +484,15 @@ sub render_xz
 	my $maxy = -1;
 	foreach my $offset ( sort keys %$blocks )
 	{
-		my $y = $SEALEVEL+$offset;
-		$y+=$el if( !$opts{FLATLAND} );
-		next if( $y>$opts{TOP_OF_WORLD} );
+		my $y = $self->{opts}->{SEA_LEVEL}+$offset;
+		$y+=$el if( !$self->{opts}->{FLATLAND} );
+		next if( $y>$self->{opts}->{TOP_OF_WORLD} );
 		$self->{world}->set_block( $x, $y, $z, $blocks->{$offset} );
 		$maxy=$y if( $y>$maxy );
 	}
 	if( defined $self->{points}->{$z} ) {
 		if( defined $self->{points}->{$z}->{$x} ) {
-			if( $maxy+2< $opts{TOP_OF_WORLD} ) {
+			if( $maxy+2< $self->{opts}->{TOP_OF_WORLD} ) {
 				my $stand_y = $maxy+1; 
 				my $sign_y = $maxy+2; 
 				$maxy+=2;

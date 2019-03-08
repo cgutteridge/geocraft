@@ -30,95 +30,63 @@ my $grid;
 my $mapcoords;
 my $pointsfile;
 
-BEGIN { 
-	sub load_config
-	{
-		my( $file ) = @_;
-		my $return;
-		unless ($return = do $file) {
-			warn "couldn't parse $file: $@" if $@;
-			warn "couldn't do $file: $!"    unless defined $return;
-			warn "couldn't run $file"       unless $return;
-			exit 1;
-		}
-	}
-
-	sub help 
-	{
-		print "$0 [--saves <mc-saves-dir>] [--ll] --from <x>,<y> --to <x>,<y> <world-name>\n";
-		print "$0 [--saves <mc-saves-dir>] [--ll] [--centre <x>,<y> | --postcode <code> ] --size <n>|<w>,<h> <world-name>\n";
-		print "Additional options: \n";
-		print "  --replace\n";
-		print "  --yshift <n>\n";
-		print "  --flood <n>\n";
-		print "  --blocks <file>\n";
-		print "  --colours <file>\n";
-		print "  --points <file> // a tsv with Lat<tab>Long<tab>Label \n";
-		print "  --elevation <plugin>\n";
-#		print "  --rotation <degrees>\n";
-		print "  --scale <factor> // 2.0 means block is 50cm. 0.5 means MC block is 2m\n";
-		print "  --mapzoom <value>\n";
-		print "  --tiles <url pattern>   // the map tile pattern\n";
-		print "  --mapcoords // use the easting northing coords as where to render the map in game\n";
-	}
-
-	if( !GetOptions (
-              	"from=s"   => \$from,      
-              	"to=s"   => \$to,      
-              	"postcode=s"   => \$postcode,      
-              	"centre=s"   => \$centre,      
-              	"size=s"   => \$size,      
-              	"blocks=s"   => \$blocks,      
-              	"colours=s"   => \$colours,      
-              	"ll"  => \$ll,
-              	"mapcoords"  => \$mapcoords,
-              	"replace"  => \$replace,
-		"yshift=i", \$yshift,
-              	"flood=i"  => \$flood,
-		"scale=f", \$scale,
-		"rotate=f", \$rotate,
-              	"help"  => \$help,
-              	"mapzoom=i"  => \$mapzoom,
-		"elevation=s" => \$elevation_plugin,
-		"tile=s" => \$tiles,
-		"grid=s" => \$grid,
-		"points=s" => \$pointsfile,
-	)) {
-		print STDERR ("Error in command line arguments\n");
-		help();
-		exit( 1 );
-	}
-
-
-	foreach my $part ( qw/ colours blocks / )
-	{
-		if( !-e "$FindBin::Bin/config/$part" )
-		{
-			`cp $FindBin::Bin/config/$part.template $FindBin::Bin/config/$part`;
-		}
-	}
-
-	if( defined $colours && $colours ne "" )
-	{
-		load_config( $colours );
-	}
-	else
-	{
-		load_config( "$FindBin::Bin/config/colours" );
-	}
-
-	if( defined $blocks && $blocks ne "" )
-	{
-		load_config( $blocks );
-	}
-	else
-	{
-		load_config( "$FindBin::Bin/config/blocks" );
+sub load_config
+{
+	my( $file ) = @_;
+	my $return;
+	unless ($return = do $file) {
+		warn "couldn't parse $file: $@" if $@;
+		warn "couldn't do $file: $!"    unless defined $return;
+		warn "couldn't run $file"       unless $return;
+		exit 1;
 	}
 }
 
-use strict;
-use warnings;
+sub help 
+{
+	print "$0 [--saves <mc-saves-dir>] [--ll] --from <x>,<y> --to <x>,<y> <world-name>\n";
+	print "$0 [--saves <mc-saves-dir>] [--ll] [--centre <x>,<y> | --postcode <code> ] --size <n>|<w>,<h> <world-name>\n";
+	print "Additional options: \n";
+	print "  --replace\n";
+	print "  --yshift <n>\n";
+	print "  --flood <n>\n";
+	print "  --blocks <file>\n";
+	print "  --colours <file>\n";
+	print "  --points <file> // a tsv with Lat<tab>Long<tab>Label \n";
+	print "  --elevation <plugin>\n";
+	print "  --rotation <degrees>\n";
+	print "  --scale <factor> // 2.0 means block is 50cm. 0.5 means MC block is 2m\n";
+	print "  --mapzoom <value>\n";
+	print "  --tiles <url pattern>   // the map tile pattern\n";
+	print "  --mapcoords // use the easting northing coords as where to render the map in game\n";
+}
+
+if( !GetOptions (
+      	"from=s"   => \$from,      
+      	"to=s"   => \$to,      
+      	"postcode=s"   => \$postcode,      
+      	"centre=s"   => \$centre,      
+      	"size=s"   => \$size,      
+      	"blocks=s"   => \$blocks,      
+      	"colours=s"   => \$colours,      
+      	"ll"  => \$ll,
+      	"mapcoords"  => \$mapcoords,
+      	"replace"  => \$replace,
+	"yshift=i", \$yshift,
+      	"flood=i"  => \$flood,
+	"scale=f", \$scale,
+	"rotate=f", \$rotate,
+       	"help"  => \$help,
+       	"mapzoom=i"  => \$mapzoom,
+	"elevation=s" => \$elevation_plugin,
+	"tile=s" => \$tiles,
+	"grid=s" => \$grid,
+	"points=s" => \$pointsfile,
+)) {
+	print STDERR ("Error in command line arguments\n");
+	help();
+	exit( 1 );
+}
 
 if( $help )
 {
@@ -132,30 +100,123 @@ if( !defined $worldname )
 	die "No worldname given";
 }
 
+
+foreach my $part ( qw/ colours blocks / )
+{
+	if( !-e "$FindBin::Bin/config/$part" )
+	{
+		`cp $FindBin::Bin/config/$part.template $FindBin::Bin/config/$part`;
+	}
+}
+
+use strict;
+use warnings;
+
+my $OPTS = {};
+
+if( defined $colours && $colours ne "" )
+{
+	$OPTS->{COLOURS_FILE} = $colours;
+}
+else
+{
+	$OPTS->{COLOURS_FILE} = "$FindBin::Bin/config/colours";
+}
+
+if( defined $blocks && $blocks ne "" )
+{
+	$OPTS->{BLOCKS_FILE} = $blocks;
+}
+else
+{
+	$OPTS->{BLOCKS_FILE} = "$FindBin::Bin/config/blocks";
+}
+
+if( defined $elevation_plugin && $elevation_plugin ne "" ) {
+	$OPTS->{ELEVATION_PLUGIN} = $elevation_plugin;
+} else {
+	$OPTS->{ELEVATION_PLUGIN} = "UKDEFRA";
+}
+
+$OPTS->{ROTATE} = $rotate;
+if( !defined $grid ) { 
+	$grid = "OSGB36";
+}
+$OPTS->{GRID} = $grid;
+
 ###################################################
 
 if( !defined $mapzoom ) { 
 	$mapzoom = 18;
 }
-if( !defined $grid ) { 
-	$grid = "OSGB36";
-}
-my $OPTS = {};
+$OPTS->{MAP_ZOOM} = $mapzoom;
 
 $OPTS->{FLATLAND} = 0;
 $OPTS->{FLOOD} = 0;
 if( defined $flood ) { $OPTS->{FLOOD} = $flood; }
 
+$OPTS->{EXTEND_DOWNWARDS} = 9;
+$OPTS->{TOP_OF_WORLD} = 254;
+$OPTS->{YSHIFT} = $yshift;
+$OPTS->{SCALE} = $scale;
+$OPTS->{TILE_PATTERN} = $tiles;
+$OPTS->{POINTS_FILE} = $pointsfile;
 
-my $points = [];
-if( $pointsfile ) {
-	open( my $pfh, "<", $pointsfile ) || die "can't read $pointsfile: $!";
-	while( my $line = readline($pfh) ) {
-		chomp $line;
-		my( @ll_lab  ) = split( /\t/, $line );
-		push @$points, \@ll_lab;
+load_config( $OPTS->{COLOURS_FILE} );
+load_config( $OPTS->{BLOCKS_FILE} );
+$OPTS->{MAPTILES} = new Minecraft::MapTiles(
+	zoom=>$OPTS->{MAP_ZOOM},
+	spread=>3,
+	width=>256,
+	height=>256,
+	dir=>"$FindBin::Bin/var/tiles", 
+	url=>"http://b.tile.openstreetmap.org/",
+	default_block=>"DEFAULT",
+	map=>$Minecraft::Config::COLOURS,
+);
+
+############################### ###############################
+
+if( !-d "$FindBin::Bin/saves" ) { mkdir( "$FindBin::Bin/saves" ); }
+if( !-d "$FindBin::Bin/var" ) { mkdir( "$FindBin::Bin/var" ); }
+if( !-d "$FindBin::Bin/var/tiles" ) { mkdir( "$FindBin::Bin/var/tiles" ); }
+if( !-d "$FindBin::Bin/var/tmp" ) { mkdir( "$FindBin::Bin/var/tmp" ); }
+if( !-d "$FindBin::Bin/var/lidar" ) { mkdir( "$FindBin::Bin/var/lidar" ); }
+if( !-d "$FindBin::Bin/var/lidar/DSM" ) { mkdir( "$FindBin::Bin/var/lidar/DSM" ); }
+if( !-d "$FindBin::Bin/var/lidar/DTM" ) { mkdir( "$FindBin::Bin/var/lidar/DTM" ); }
+
+############################### ###############################
+print "=======================================================\n";
+print "University of Southampton Open Data Minecraft Map Maker\n";
+print "=======================================================\n";
+
+if( -e "$FindBin::Bin/saves/$worldname" )
+{
+	if( !$replace )
+	{
+		die "World Already exists. Use --replace to erase it.";
 	}
+	print "World exists, removing it\n";
+	`rm -rf "$FindBin::Bin/saves/$worldname"`;
 }
+print "Cloning 'bedrock' as a base world\n";
+`cp -a "$FindBin::Bin/BedRock" "$FindBin::Bin/saves/$worldname"`;
+
+
+
+
+
+my $mc = new Minecraft( "$FindBin::Bin/saves" );
+my $world = $mc->world( $worldname, init_chunk=>sub {
+	my( $region, $cx,$cz ) = @_;
+#	for( my $off_z=0;$off_z<16;$off_z++ ) {
+#		for( my $off_x=0;$off_x<16;$off_x++ ) {
+#			$region->set_block( $cx*16+$off_x, 0, $cz*16+$off_z, 7 ); #bedrock
+#		}
+#	}
+});
+
+my $p = Minecraft::Projection->new( $world, $OPTS );
 
 # goal is to end up with bottom left & top right corners in Easting/Northing
 
@@ -169,7 +230,6 @@ if( defined $postcode )
 	$ll = 0;
 }
 
-
 my( $e1,$e2,$n1,$n2 );
 my( $ANCHOR_E, $ANCHOR_N );
 if( defined $centre )
@@ -179,7 +239,7 @@ if( defined $centre )
 	my( $e,$n );
 	if( $ll ) 
 	{
-		($e,$n) = Minecraft::Projection::ll_to_grid($x,$y, $grid,$rotate );
+		($e,$n) = $p->ll_to_grid($x,$y);
 	}
 	else
 	{
@@ -214,8 +274,8 @@ elsif( defined $from && defined $to )
 	my( $e2,$n2 );
 	if( $ll ) 
 	{
-		($e1,$n1) = Minecraft::Projection::ll_to_grid($x1,$y1, $grid,$rotate );
-		($e2,$n2) = Minecraft::Projection::ll_to_grid($x2,$y2, $grid,$rotate );
+		($e1,$n1) = $p->ll_to_grid($x1,$y1);
+		($e2,$n2) = $p->ll_to_grid($x2,$y2);
 	}
 	else
 	{
@@ -245,34 +305,9 @@ if( $mapcoords )
 	$ANCHOR_E = 0;	
 	$ANCHOR_N = 0;	
 }
+$OPTS->{OFFSET_E} = -$ANCHOR_E;
+$OPTS->{OFFSET_N} = $ANCHOR_N;
 	
-############################### ###############################
-
-if( !-d "$FindBin::Bin/saves" ) { mkdir( "$FindBin::Bin/saves" ); }
-if( !-d "$FindBin::Bin/var" ) { mkdir( "$FindBin::Bin/var" ); }
-if( !-d "$FindBin::Bin/var/tiles" ) { mkdir( "$FindBin::Bin/var/tiles" ); }
-if( !-d "$FindBin::Bin/var/tmp" ) { mkdir( "$FindBin::Bin/var/tmp" ); }
-if( !-d "$FindBin::Bin/var/lidar" ) { mkdir( "$FindBin::Bin/var/lidar" ); }
-if( !-d "$FindBin::Bin/var/lidar/DSM" ) { mkdir( "$FindBin::Bin/var/lidar/DSM" ); }
-if( !-d "$FindBin::Bin/var/lidar/DTM" ) { mkdir( "$FindBin::Bin/var/lidar/DTM" ); }
-
-############################### ###############################
-print "=======================================================\n";
-print "University of Southampton Open Data Minecraft Map Maker\n";
-print "=======================================================\n";
-
-if( -e "$FindBin::Bin/saves/$worldname" )
-{
-	if( !$replace )
-	{
-		die "World Already exists. Use --replace to erase it.";
-	}
-	print "World exists, removing it\n";
-	`rm -rf "$FindBin::Bin/saves/$worldname"`;
-}
-print "Cloning 'bedrock' as a base world\n";
-`cp -a "$FindBin::Bin/BedRock" "$FindBin::Bin/saves/$worldname"`;
-
 print "Setting World Options\n";
 my $nbt = Minecraft::NBT->from_gzip_file( "$FindBin::Bin/saves/$worldname/level.dat" );
 $nbt->{Data}->{LevelName}->{_value} = $worldname;
@@ -286,57 +321,23 @@ if( $mapcoords )
 }
 $nbt->to_gzip_file( "$FindBin::Bin/saves/$worldname/level.dat" );
 
-
-my $mc = new Minecraft( "$FindBin::Bin/saves" );
-my $world = $mc->world( $worldname, init_chunk=>sub {
-	my( $region, $cx,$cz ) = @_;
-	for( my $off_z=0;$off_z<16;$off_z++ ) {
-		for( my $off_x=0;$off_x<16;$off_x++ ) {
-			$region->set_block( $cx*16+$off_x, 0, $cz*16+$off_z, 7 ); #bedrock
-		}
+if( $pointsfile ) {
+	my $points = [];
+	open( my $pfh, "<", $pointsfile ) || die "can't read $pointsfile: $!";
+	while( my $line = readline($pfh) ) {
+		chomp $line;
+		my( @ll_lab  ) = split( /\t/, $line );
+		push @$points, \@ll_lab;
 	}
-});
-
-
-$OPTS->{MAPTILES} = new Minecraft::MapTiles(
-	zoom=>$mapzoom,
-	spread=>3,
-	width=>256,
-	height=>256,
-	dir=>"$FindBin::Bin/var/tiles", 
-	url=>"http://b.tile.openstreetmap.org/",
-	default_block=>"DEFAULT",
-	map=>$Minecraft::Config::COLOURS,
-);
-
-$OPTS->{BLOCKS} = $Minecraft::Config::BLOCKS;
-$OPTS->{EXTEND_DOWNWARDS} = 9;
-$OPTS->{TOP_OF_WORLD} = 254;
-$OPTS->{YSHIFT} = $yshift;
-$OPTS->{SCALE} = $scale;
-$OPTS->{ROTATE} = $rotate;
-$OPTS->{TILE_PATTERN} = $tiles;
-$OPTS->{MAP_ZOOM} = $mapzoom;
-
-$elevation_plugin = "UKDEFRA" if( !defined $elevation_plugin );
-my $rc = eval "use Elevation::$elevation_plugin; 1;";
-if( !$rc ) {
-	die "Error in loading elevation; $@";
-}
-$OPTS->{ELEVATION} = "Elevation::$elevation_plugin"->new( 
-	"$FindBin::Bin/var/lidar", 
-	"$FindBin::Bin/var/tmp", 
-);
-
-my $p = Minecraft::Projection->new( $world, 0,0, $ANCHOR_E,$ANCHOR_N, $grid, $rotate );
-if( @$points ) {
 	foreach my $point ( @$points ) {
 		$p->add_point_ll( @$point ); # lat,long,label
 	}
 }
-print "Projection created. MC0,0 = ${ANCHOR_E}E ${ANCHOR_N}N\n"; 
 
-$p->render( %$OPTS );
+print "Projection created. MC0,0 = ${ANCHOR_E}E ${ANCHOR_N}N\n"; 
+$p->configure( %$OPTS );
+$p->continue;
+
 print "Map rendered OK\n";
 
 exit;
