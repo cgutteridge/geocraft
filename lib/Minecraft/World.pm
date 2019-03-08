@@ -29,6 +29,7 @@ sub new
 	return $self;
 }
 
+# return the relative position inside a region for an absolute coord 
 sub c
 {
 	my( $x,$y,$z ) = @_;

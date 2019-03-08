@@ -15,11 +15,11 @@ $Minecraft::Config::BLOCKS = {
 				 || int($context->{south}->{elevation}) < int($context->{elevation})  
 				 || int($context->{east}->{elevation}) < int($context->{elevation})  
 				 || int($context->{west}->{elevation}) < int($context->{elevation}) ) {
-					return 49; # obsidian
+			#		return 49; # obsidian
 				}
 	#		}
-			# red orange yellow lime lightblue
-			my @levels = qw/ 35.14 35.1 35.4 35.5 35.3 35.2 /;
+			# red orange yellow green blue purple
+			my @levels = qw/ 35.14 35.01 35.4 35.13 35.11 35.10 /;
 			return $levels[ int($context->{elevation}) % (scalar @levels) ];
 			#return 78.7; # snow
 		},
@@ -29,7 +29,7 @@ $Minecraft::Config::BLOCKS = {
 		# under_block undef by default
 		# top_block undef by default
 		# over_block undef by default
-		up_block => 35.07, # dark grey wool for unknown features
+		up_block => 35.15, # dark grey wool for unknown features
 		# not sure we can cleanly make filtered features hollow yet
 	},
 	ALLOTMENT=>{ # course dirt
@@ -45,19 +45,19 @@ $Minecraft::Config::BLOCKS = {
 		feature_min_height => 3, # buildings always at least 3m high
 		block => 1, # stone under a building
 		look_around => 1,
-		up_block => 45,
-		over_block => 171.08, # light grey carpet
+		up_block => 35.6, # pink
 	},
 	CHURCH=>{ # stone blocks
 		look_around => 1,
-		up_block => 98,
-		block => 1, # stone under a building
+		up_block => 35, # 2hite
+		block => 35, # white
 		feature_min_height => 3, # buildings always at least 3m high
 	},
 	WATER=>{ # water
+		block => 9,
 		feature_filter => 10, # remove small features on water (boats)
 		up_block => 1, # make big features stone (large boats & bridges)
-		under_block => 3, # base under the water.
+		under_block => 22, # base under the water.
 	},
 	SAND=>{ # sand
 		up_block => 5, # wood features on sand??

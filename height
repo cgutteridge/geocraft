@@ -7,6 +7,8 @@ use Geo::Coordinates::OSGB qw(ll_to_grid grid_to_ll);
 use Geo::Coordinates::OSTN02;
 use Elevation;
 use Getopt::Long;
+use Carp;
+$SIG{__DIE__} = sub { Carp::confess @_ };
 
 my $help;
 my $elevation_plugin;
@@ -64,7 +66,10 @@ if( !-d "$FindBin::Bin/var/lidar/DSM" ) { mkdir( "$FindBin::Bin/var/lidar/DSM" )
 if( !-d "$FindBin::Bin/var/lidar/DTM" ) { mkdir( "$FindBin::Bin/var/lidar/DTM" ); }
 
 $elevation_plugin = "UKDEFRA" if( !defined $elevation_plugin );
-eval "use Elevation::$elevation_plugin;";
+my $rc = eval "use Elevation::$elevation_plugin; 1;";
+if( !$rc ) {
+	die "Error in loading elevation; $@";
+}
 my $elevation = "Elevation::$elevation_plugin"->new( 
 	"$FindBin::Bin/var/lidar", 
 	"$FindBin::Bin/var/tmp", 
