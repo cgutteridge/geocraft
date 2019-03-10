@@ -30,6 +30,35 @@ sub new
 	return $self;
 }
 
+sub restore {
+	my( $class, $world ) = @_;
+	
+	my $self = bless {},$class;
+	$self->{world} = $world;
+	$self->{points} = {};
+	$self->read_status;
+
+	return $self;
+}
+
+sub read_status {
+	my( $self ) = @_;
+
+	my $filename = $self->{world}->{dir}."/map-maker-status.json";
+	open( my $fh, "<:utf8", $filename ) || die "failed to open (for reading) $filename: $!";
+	my $data = join("",<$fh>);
+	close $fh;
+  	$self->{opts} = decode_json( $data );
+}
+
+sub write_status {
+	my( $self ) = @_;
+
+	my $filename = $self->{world}->{dir}."/map-maker-status.json";
+	open( my $fh, ">:utf8", $filename ) || die "failed to open (for writing) $filename: $!";
+  	syswrite( $fh, encode_json( $self->{opts} ));
+  	close $fh;
+}
 
 sub ll_to_grid
 {
@@ -130,10 +159,10 @@ sub add_point
 	$x = int $x;
 	$z = int $z; 
 
-	if( !defined $self->{points}->{$z}->{$x} ) {
-		$self->{points}->{$z}->{$x} = [];
+	if( !defined $self->{opts}->{points}->{$z}->{$x} ) {
+		$self->{opts}->{points}->{$z}->{$x} = [];
 	}
-	push @{$self->{points}->{$z}->{$x}}, $label;
+	push @{$self->{opts}->{points}->{$z}->{$x}}, { label=>$label, status=>"todo" };
 }
 		
 	
@@ -233,12 +262,11 @@ sub configure
 	if( $self->{opts}->{NORTH} < $self->{opts}->{SOUTH} ) { ( $self->{opts}->{NORTH},$self->{opts}->{SOUTH} ) = ( $self->{opts}->{SOUTH},$self->{opts}->{NORTH} ); }
 
 	$self->elevation();
-	if( $self->{opts}->{ELEVATION} && defined $self->{opts}->{SCALE} && $self->{opts}->{SCALE}>1 )
+	if( $self->{elevation} && defined $self->{opts}->{SCALE} && $self->{opts}->{SCALE}>1 )
 	{	
 		my($lat,$long) = $self->grid_to_ll( $self->{opts}->{OFFSET_E}, $self->{opts}->{OFFSET_N} );
-		my $dtm = $self->{opts}->{ELEVATION}->ll( "DTM", $lat, $long );
+		my $dtm = $self->elevation->ll( "DTM", $lat, $long );
 		$self->{opts}->{YSHIFT} -= $dtm * ( $self->{opts}->{SCALE}-1 );
-		delete $self->{opts}->{ELEVATION};
 	}
 
 	$self->{opts}->{SEA_LEVEL} = 2;
@@ -263,15 +291,6 @@ sub configure
 
 	# save config
 	$self->write_status;
-}
-
-sub write_status {
-	my( $self ) = @_;
-
-	my $filename = $self->{world}->{dir}."/map-maker-status.json";
-	open( my $fh, ">:utf8", $filename ) || die "failed to open $filename: $!";
-  	syswrite( $fh, encode_json( $self->{opts} ));
-  	close $fh;
 }
 
 
@@ -300,10 +319,6 @@ sub continue {
 	my $old_fh = select(STDOUT);
 	$| = 1;
 	select($old_fh); 
-
-	# load config and status
-	# $self->load_status();
-
 
 	$self->{maptiles} = new Minecraft::MapTiles(
 		zoom=>$self->{opts}->{MAP_ZOOM},

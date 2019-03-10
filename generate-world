@@ -7,6 +7,9 @@ use Minecraft;
 use Elevation;
 use Getopt::Long;
 
+use strict;
+use warnings;
+
 my $from;
 my $to;
 my $postcode;
@@ -27,11 +30,35 @@ my $tiles;
 my $grid;
 my $mapcoords;
 my $pointsfile;
+my $wikipoints;
+my $continue;
+
+############################### ###############################
+
+# Init our dirs and files if needed
+if( !-d "$FindBin::Bin/saves" ) { mkdir( "$FindBin::Bin/saves" ); }
+if( !-d "$FindBin::Bin/var" ) { mkdir( "$FindBin::Bin/var" ); }
+if( !-d "$FindBin::Bin/var/tiles" ) { mkdir( "$FindBin::Bin/var/tiles" ); }
+if( !-d "$FindBin::Bin/var/tmp" ) { mkdir( "$FindBin::Bin/var/tmp" ); }
+if( !-d "$FindBin::Bin/var/lidar" ) { mkdir( "$FindBin::Bin/var/lidar" ); }
+if( !-d "$FindBin::Bin/var/lidar/DSM" ) { mkdir( "$FindBin::Bin/var/lidar/DSM" ); }
+if( !-d "$FindBin::Bin/var/lidar/DTM" ) { mkdir( "$FindBin::Bin/var/lidar/DTM" ); }
+
+foreach my $part ( qw/ colours blocks / )
+{
+	if( !-e "$FindBin::Bin/config/$part" )
+	{
+		`cp $FindBin::Bin/config/$part.template $FindBin::Bin/config/$part`;
+	}
+}
+
+############################### ###############################
 
 sub help 
 {
 	print "$0 [--saves <mc-saves-dir>] [--ll] --from <x>,<y> --to <x>,<y> <world-name>\n";
 	print "$0 [--saves <mc-saves-dir>] [--ll] [--centre <x>,<y> | --postcode <code> ] --size <n>|<w>,<h> <world-name>\n";
+	print "$0 [--saves <mc-saves-dir>] --continue <world-name>\n";
 	print "Additional options: \n";
 	print "  --replace\n";
 	print "  --yshift <n>\n";
@@ -39,6 +66,7 @@ sub help
 	print "  --blocks <file>\n";
 	print "  --colours <file>\n";
 	print "  --points <file> // a tsv with Lat<tab>Long<tab>Label \n";
+	print "  --wikipoints\n";
 	print "  --elevation <plugin>\n";
 	print "  --rotation <degrees>\n";
 	print "  --scale <factor> // 2.0 means block is 50cm. 0.5 means MC block is 2m\n";
@@ -68,6 +96,8 @@ if( !GetOptions (
 	"tile=s" => \$tiles,
 	"grid=s" => \$grid,
 	"points=s" => \$pointsfile,
+	"wikipoints" => \$wikipoints,
+	"continue" => \$continue,
 )) {
 	print STDERR ("Error in command line arguments\n");
 	help();
@@ -86,99 +116,19 @@ if( !defined $worldname )
 	die "No worldname given";
 }
 
-
-foreach my $part ( qw/ colours blocks / )
-{
-	if( !-e "$FindBin::Bin/config/$part" )
+if( !$continue ) {
+	if( -e "$FindBin::Bin/saves/$worldname" )
 	{
-		`cp $FindBin::Bin/config/$part.template $FindBin::Bin/config/$part`;
+		if( !$replace )
+		{
+			die "World Already exists. Use --replace to erase it.";
+		}
+		print "World exists, removing it\n";
+		`rm -rf "$FindBin::Bin/saves/$worldname"`;
 	}
+	print "Cloning 'bedrock' as a base world\n";
+	`cp -a "$FindBin::Bin/BedRock" "$FindBin::Bin/saves/$worldname"`;
 }
-
-use strict;
-use warnings;
-
-my $OPTS = {};
-
-if( defined $colours && $colours ne "" )
-{
-	$OPTS->{COLOURS_FILE} = $colours;
-}
-else
-{
-	$OPTS->{COLOURS_FILE} = "$FindBin::Bin/config/colours";
-}
-
-if( defined $blocks && $blocks ne "" )
-{
-	$OPTS->{BLOCKS_FILE} = $blocks;
-}
-else
-{
-	$OPTS->{BLOCKS_FILE} = "$FindBin::Bin/config/blocks";
-}
-
-if( defined $elevation_plugin && $elevation_plugin ne "" ) {
-	$OPTS->{ELEVATION_PLUGIN} = $elevation_plugin;
-} else {
-	$OPTS->{ELEVATION_PLUGIN} = "UKDEFRA";
-}
-
-$OPTS->{ROTATE} = $rotate;
-if( !defined $grid ) { 
-	$grid = "OSGB36";
-}
-$OPTS->{GRID} = $grid;
-
-###################################################
-
-if( !defined $mapzoom ) { 
-	$mapzoom = 18;
-}
-$OPTS->{MAP_ZOOM} = $mapzoom;
-
-$OPTS->{FLATLAND} = 0;
-$OPTS->{FLOOD} = 0;
-if( defined $flood ) { $OPTS->{FLOOD} = $flood; }
-
-$OPTS->{EXTEND_DOWNWARDS} = 9;
-$OPTS->{TOP_OF_WORLD} = 254;
-$OPTS->{YSHIFT} = $yshift;
-$OPTS->{SCALE} = $scale;
-$OPTS->{TILE_PATTERN} = $tiles;
-$OPTS->{POINTS_FILE} = $pointsfile;
-
-
-############################### ###############################
-
-if( !-d "$FindBin::Bin/saves" ) { mkdir( "$FindBin::Bin/saves" ); }
-if( !-d "$FindBin::Bin/var" ) { mkdir( "$FindBin::Bin/var" ); }
-if( !-d "$FindBin::Bin/var/tiles" ) { mkdir( "$FindBin::Bin/var/tiles" ); }
-if( !-d "$FindBin::Bin/var/tmp" ) { mkdir( "$FindBin::Bin/var/tmp" ); }
-if( !-d "$FindBin::Bin/var/lidar" ) { mkdir( "$FindBin::Bin/var/lidar" ); }
-if( !-d "$FindBin::Bin/var/lidar/DSM" ) { mkdir( "$FindBin::Bin/var/lidar/DSM" ); }
-if( !-d "$FindBin::Bin/var/lidar/DTM" ) { mkdir( "$FindBin::Bin/var/lidar/DTM" ); }
-
-############################### ###############################
-print "=======================================================\n";
-print "University of Southampton Open Data Minecraft Map Maker\n";
-print "=======================================================\n";
-
-if( -e "$FindBin::Bin/saves/$worldname" )
-{
-	if( !$replace )
-	{
-		die "World Already exists. Use --replace to erase it.";
-	}
-	print "World exists, removing it\n";
-	`rm -rf "$FindBin::Bin/saves/$worldname"`;
-}
-print "Cloning 'bedrock' as a base world\n";
-`cp -a "$FindBin::Bin/BedRock" "$FindBin::Bin/saves/$worldname"`;
-
-
-
-
 
 my $mc = new Minecraft( "$FindBin::Bin/saves" );
 my $world = $mc->world( $worldname, init_chunk=>sub {
@@ -190,128 +140,206 @@ my $world = $mc->world( $worldname, init_chunk=>sub {
 	}
 });
 
-my $p = Minecraft::Projection->new( $world, $OPTS );
-
-# goal is to end up with bottom left & top right corners in Easting/Northing
-
-if( defined $postcode ) 
-{
-	$postcode = uc $postcode;
-	$postcode =~ s/\s//g;
-
-	my( $e, $n ) = postcode_to_en($postcode);
-	$centre = "$e,$n";
-	$ll = 0;
+my $p;
+if( $continue ) {
+	print "RESTORING...\n";
+	$p = Minecraft::Projection->restore( $world );
 }
-
-my( $e1,$e2,$n1,$n2 );
-my( $ANCHOR_E, $ANCHOR_N );
-if( defined $centre )
-{
-	my( $x,$y ) = split( ",", $centre );
-
-	my( $e,$n );
-	if( $ll ) 
+else {
+# Set up projection OPTS
+		
+	my $OPTS = {};
+		
+	if( defined $colours && $colours ne "" )
 	{
-		($e,$n) = $p->ll_to_grid($x,$y);
+		$OPTS->{COLOURS_FILE} = $colours;
 	}
 	else
 	{
-		($e,$n)=( $x,$y);
+		$OPTS->{COLOURS_FILE} = "$FindBin::Bin/config/colours";
 	}
-
-	if( !defined $size )
-	{
-		die( "--size required with --postcode or --centre" );
-	}
-	my( $width,$height );
-	if( $size =~ m/,/ )
-	{
-		($width,$height) = split( ",", $size );
-	}
-	else
-	{
-		($width,$height) = ($size,$size);
-	}
-	($ANCHOR_E,$ANCHOR_N) = (int $e,int $n);
-
-	$OPTS->{EAST1} = -int( $width/2 );	
-	$OPTS->{EAST2} = int( $width/2 );	
-	$OPTS->{NORTH1} = -int( $height/2 );	
-	$OPTS->{NORTH2} = int( $height/2 );	
-}	
-elsif( defined $from && defined $to )
-{
-	my( $x1,$y1 ) = split( ",", $from );
-	my( $x2,$y2 ) = split( ",", $to );
-	my( $e1,$n1 );
-	my( $e2,$n2 );
-	if( $ll ) 
-	{
-		($e1,$n1) = $p->ll_to_grid($x1,$y1);
-		($e2,$n2) = $p->ll_to_grid($x2,$y2);
-	}
-	else
-	{
-		($e1,$n1)=($x1,$y1);
-		($e2,$n2)=($x2,$y2);
-	}
-	if( $e1>$e2 ) { ($e2,$e1)=($e1,$e2); }	
-	if( $n1>$n2 ) { ($n2,$n1)=($n1,$n2); }	
 	
-	$ANCHOR_E = int($e1);	
-	$ANCHOR_N = int($n1);
-	$OPTS->{EAST1} = 0;
-	$OPTS->{EAST2} = int( $e2-$e1 );
-	$OPTS->{NORTH1} = 0;
-	$OPTS->{NORTH2} = -int( $n2-$n1 );
-}
-else
-{
-	die "missing centre+size or from+to";
-}
-if( $mapcoords ) 
-{
-	$OPTS->{EAST1} += $ANCHOR_E;
-	$OPTS->{EAST2} += $ANCHOR_E;
-	$OPTS->{NORTH1} -= $ANCHOR_N;
-	$OPTS->{NORTH2} -= $ANCHOR_N;
-	$ANCHOR_E = 0;	
-	$ANCHOR_N = 0;	
-}
-$OPTS->{OFFSET_E} = $ANCHOR_E;
-$OPTS->{OFFSET_N} = $ANCHOR_N;
+	if( defined $blocks && $blocks ne "" )
+	{
+		$OPTS->{BLOCKS_FILE} = $blocks;
+	}
+	else
+	{
+		$OPTS->{BLOCKS_FILE} = "$FindBin::Bin/config/blocks";
+	}
 	
-print "Setting World Options\n";
-my $nbt = Minecraft::NBT->from_gzip_file( "$FindBin::Bin/saves/$worldname/level.dat" );
-$nbt->{Data}->{LevelName}->{_value} = $worldname;
-$nbt->{Data}->{LastPlayed}->{_value} = time()."000";
-if( $mapcoords ) 
-{
-	$nbt->{Data}->{Player}->{abilities}->{flying}->{_value} = 0;
-	$nbt->{Data}->{Player}->{Pos}->{_value}->[0]->{_value} = $OPTS->{EAST1};
-	$nbt->{Data}->{Player}->{Pos}->{_value}->[1]->{_value} = 250;
-	$nbt->{Data}->{Player}->{Pos}->{_value}->[2]->{_value} = $OPTS->{NORTH1};
-}
-$nbt->to_gzip_file( "$FindBin::Bin/saves/$worldname/level.dat" );
-
-if( $pointsfile ) {
-	my $points = [];
-	open( my $pfh, "<", $pointsfile ) || die "can't read $pointsfile: $!";
-	while( my $line = readline($pfh) ) {
-		chomp $line;
-		my( @ll_lab  ) = split( /\t/, $line );
-		push @$points, \@ll_lab;
+	if( defined $elevation_plugin && $elevation_plugin ne "" ) {
+		$OPTS->{ELEVATION_PLUGIN} = $elevation_plugin;
+	} else {
+		$OPTS->{ELEVATION_PLUGIN} = "UKDEFRA";
 	}
-	foreach my $point ( @$points ) {
-		$p->add_point_ll( @$point ); # lat,long,label
+	
+	$OPTS->{ROTATE} = $rotate;
+	if( !defined $grid ) { 
+		$grid = "OSGB36";
 	}
-}
+	$OPTS->{GRID} = $grid;
+	
+	###################################################
+	
+	if( !defined $mapzoom ) { 
+		$mapzoom = 18;
+	}
+	$OPTS->{MAP_ZOOM} = $mapzoom;
+	
+	$OPTS->{FLATLAND} = 0;
+	$OPTS->{FLOOD} = 0;
+	if( defined $flood ) { $OPTS->{FLOOD} = $flood; }
 
-print "Projection created. MC0,0 = ${ANCHOR_E}E ${ANCHOR_N}N\n"; 
-$p->configure( %$OPTS );
+	$OPTS->{EXTEND_DOWNWARDS} = 9;
+	$OPTS->{TOP_OF_WORLD} = 254;
+	$OPTS->{YSHIFT} = $yshift;
+	$OPTS->{SCALE} = $scale;
+	$OPTS->{TILE_PATTERN} = $tiles;
+
+	############################### ###############################
+	
+	#print "=======================================================\n";
+	#print "University of Southampton Open Data Minecraft Map Maker\n";
+	#print "=======================================================\n";
+
+
+
+	# we create this now  to use the grid & rotate to ask for ll conversions
+	$p = Minecraft::Projection->new( $world, $OPTS );
+	
+	# goal is to end up with bottom left & top right corners in Easting/Northing
+	
+	if( defined $postcode ) 
+	{
+		$postcode = uc $postcode;
+		$postcode =~ s/\s//g;
+	
+		my( $e, $n ) = postcode_to_en($postcode);
+		$centre = "$e,$n";
+		$ll = 0;
+	}
+	
+	my( $e1,$e2,$n1,$n2 );
+	my( $ANCHOR_E, $ANCHOR_N );
+	if( defined $centre )
+	{
+		my( $x,$y ) = split( ",", $centre );
+	
+		my( $e,$n );
+		if( $ll ) 
+		{
+			($e,$n) = $p->ll_to_grid($x,$y);
+		}
+		else
+		{
+			($e,$n)=( $x,$y);
+		}
+	
+		if( !defined $size )
+		{
+			die( "--size required with --postcode or --centre" );
+		}
+		my( $width,$height );
+		if( $size =~ m/,/ )
+		{
+			($width,$height) = split( ",", $size );
+		}
+		else
+		{
+			($width,$height) = ($size,$size);
+		}
+		($ANCHOR_E,$ANCHOR_N) = (int $e,int $n);
+	
+		$OPTS->{EAST1} = -int( $width/2 );	
+		$OPTS->{EAST2} = int( $width/2 );	
+		$OPTS->{NORTH1} = -int( $height/2 );	
+		$OPTS->{NORTH2} = int( $height/2 );	
+	}	
+	elsif( defined $from && defined $to )
+	{
+		my( $x1,$y1 ) = split( ",", $from );
+		my( $x2,$y2 ) = split( ",", $to );
+		my( $e1,$n1 );
+		my( $e2,$n2 );
+		if( $ll ) 
+		{
+			($e1,$n1) = $p->ll_to_grid($x1,$y1);
+			($e2,$n2) = $p->ll_to_grid($x2,$y2);
+		}
+		else
+		{
+			($e1,$n1)=($x1,$y1);
+			($e2,$n2)=($x2,$y2);
+		}
+		if( $e1>$e2 ) { ($e2,$e1)=($e1,$e2); }	
+		if( $n1>$n2 ) { ($n2,$n1)=($n1,$n2); }	
+		
+		$ANCHOR_E = int($e1);	
+		$ANCHOR_N = int($n1);
+		$OPTS->{EAST1} = 0;
+		$OPTS->{EAST2} = int( $e2-$e1 );
+		$OPTS->{NORTH1} = 0;
+		$OPTS->{NORTH2} = -int( $n2-$n1 );
+	}
+	else
+	{
+		die "missing centre+size or from+to";
+	}
+	if( $mapcoords ) 
+	{
+		$OPTS->{EAST1} += $ANCHOR_E;
+		$OPTS->{EAST2} += $ANCHOR_E;
+		$OPTS->{NORTH1} -= $ANCHOR_N;
+		$OPTS->{NORTH2} -= $ANCHOR_N;
+		$ANCHOR_E = 0;	
+		$ANCHOR_N = 0;	
+	}
+	$OPTS->{OFFSET_E} = $ANCHOR_E;
+	$OPTS->{OFFSET_N} = $ANCHOR_N;
+		
+	print "Setting World Options\n";
+	my $nbt = Minecraft::NBT->from_gzip_file( "$FindBin::Bin/saves/$worldname/level.dat" );
+	$nbt->{Data}->{LevelName}->{_value} = $worldname;
+	$nbt->{Data}->{LastPlayed}->{_value} = time()."000";
+	if( $mapcoords ) 
+	{
+		$nbt->{Data}->{Player}->{abilities}->{flying}->{_value} = 0;
+		$nbt->{Data}->{Player}->{Pos}->{_value}->[0]->{_value} = $OPTS->{EAST1};
+		$nbt->{Data}->{Player}->{Pos}->{_value}->[1]->{_value} = 250;
+		$nbt->{Data}->{Player}->{Pos}->{_value}->[2]->{_value} = $OPTS->{NORTH1};
+	}
+	$nbt->to_gzip_file( "$FindBin::Bin/saves/$worldname/level.dat" );
+	# done setting world
+	
+	if( $pointsfile ) {
+		my $points = [];
+		open( my $pfh, "<", $pointsfile ) || die "can't read $pointsfile: $!";
+		while( my $line = readline($pfh) ) {
+			chomp $line;
+			my( @ll_lab  ) = split( /\t/, $line );
+			push @$points, \@ll_lab;
+		}
+		foreach my $point ( @$points ) {
+			$p->add_point_ll( @$point ); # lat,long,label
+		}
+	}
+
+	if( $wikipoints ) {
+		my( $lat1, $long1 ) = $p->grid_to_ll($OPTS->{EAST1},$OPTS->{NORTH1});
+		my( $lat2, $long2 ) = $p->grid_to_ll($OPTS->{EAST2},$OPTS->{NORTH2});
+		my $points = Minecraft::WikiPoints::get( $lat1,$long1, $lat2,$long2 );
+		foreach my $point ( @$points ) {
+			$p->add_point_ll( @$point ); # lat,long,label
+		}
+	}
+	
+	$p->configure( %$OPTS );
+	print "Projection created. MC0,0 = ${ANCHOR_E}E ${ANCHOR_N}N\n"; 
+} 
+
+
 $p->continue;
-
 print "Map rendered OK\n";
 
 exit;
