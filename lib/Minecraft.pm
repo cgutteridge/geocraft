@@ -2,11 +2,15 @@ package Minecraft;
 
 use strict;
 use warnings;
+use Minecraft::Config;
 use Minecraft::NBT;
 use Minecraft::NBT::Tag;
 use Minecraft::Region;
 use Minecraft::World;
 use Minecraft::BlockTypes;
+use Minecraft::BlockConfig;
+use Minecraft::MapTiles;
+use Minecraft::Projection;
 
 sub new
 {

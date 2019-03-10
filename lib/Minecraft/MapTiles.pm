@@ -12,9 +12,8 @@ sub new
 
 	my $self = bless { %opts },$class;
 	$self->{tiles} = {};	
-	$self->{tiles} = {};	
-
-	
+	Minecraft::Config::load_config( $self->{colours_file} );
+	$self->{map} = $Minecraft::Config::COLOURS=$Minecraft::Config::COLOURS;
 
 	return $self;
 }

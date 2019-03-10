@@ -5,6 +5,7 @@ use Math::Trig;
 use Data::Dumper;
 use Minecraft::Context;
 use Geo::Coordinates::OSTN02;
+use JSON::PP;
 use Carp;
 use strict;
 use warnings;
@@ -24,7 +25,7 @@ sub new
 	my $self = bless {},$class;
 	$self->{world} = $world;
 	$self->{points} = {};
-	$self->{opts} = $opts;
+	$self->{opts} = $opts; # opts is the bit we save to disk
 
 	return $self;
 }
@@ -110,8 +111,8 @@ sub add_point_en
 {
 	my( $self, $e,$n, $label ) = @_;
 
-	my $actual_x = $e - $self->{OFFSET_E};
-	my $actual_z = -$n + $self->{OFFSET_N};
+	my $actual_x = $e - $self->{opts}->{OFFSET_E};
+	my $actual_z = -$n + $self->{opts}->{OFFSET_N};
 
 	# can't cope with scale being set as it's given to render. It should belong to projection, like rotate does.	
 #	if( $opts{SCALE} ) {
@@ -149,8 +150,8 @@ sub context
 		$transformed_z = $transformed_z / $opts{SCALE};
 	}
 	
-	my $e = $self->{OFFSET_E} + $transformed_x;
-	my $n = $self->{OFFSET_N} - $transformed_z;
+	my $e = $self->{opts}->{OFFSET_E} + $transformed_x;
+	my $n = $self->{opts}->{OFFSET_N} - $transformed_z;
 
 	my($lat,$long) = $self->grid_to_ll( $e, $n );
 
@@ -175,9 +176,9 @@ sub context
 	}
 	
 	my $block = "DEFAULT"; # default to stone
-	if( defined $opts{MAPTILES} )
+	if( defined $self->{maptiles} )
 	{
-		$block = $opts{MAPTILES}->block_at( $lat,$long );
+		$block = $self->{maptiles}->block_at( $lat,$long );
 	}
 	if( defined $opts{BLOCK} )
 	{
@@ -231,7 +232,7 @@ sub configure
 	if( $self->{opts}->{EAST} < $self->{opts}->{WEST} ) { ( $self->{opts}->{EAST},$self->{opts}->{WEST} ) = ( $self->{opts}->{WEST},$self->{opts}->{EAST} ); }
 	if( $self->{opts}->{NORTH} < $self->{opts}->{SOUTH} ) { ( $self->{opts}->{NORTH},$self->{opts}->{SOUTH} ) = ( $self->{opts}->{SOUTH},$self->{opts}->{NORTH} ); }
 
-	$self->init_elevation();
+	$self->elevation();
 	if( $self->{opts}->{ELEVATION} && defined $self->{opts}->{SCALE} && $self->{opts}->{SCALE}>1 )
 	{	
 		my($lat,$long) = $self->grid_to_ll( $self->{opts}->{OFFSET_E}, $self->{opts}->{OFFSET_N} );
@@ -251,7 +252,7 @@ sub configure
 	}
 
 	
-	$self->{opts}->{REGIONS}->{TODO} = {};
+	$self->{opts}->{REGIONS} = {};
 	for( my $z=$self->{opts}->{SOUTH}-($self->{opts}->{SOUTH} % $SQUARE_SIZE); $z<$self->{opts}->{NORTH}; $z+=$SQUARE_SIZE ) 
 	{
 		for( my $x=$self->{opts}->{WEST}-($self->{opts}->{WEST} % $SQUARE_SIZE); $x<$self->{opts}->{EAST}; $x+=$SQUARE_SIZE )
@@ -267,8 +268,12 @@ sub configure
 sub write_status {
 	my( $self ) = @_;
 
-	print STDERR "TODO: write_status\n";
+	my $filename = $self->{world}->{dir}."/map-maker-status.json";
+	open( my $fh, ">:utf8", $filename ) || die "failed to open $filename: $!";
+  	syswrite( $fh, encode_json( $self->{opts} ));
+  	close $fh;
 }
+
 
 sub elevation {
 	my( $self ) = @_;
@@ -297,17 +302,32 @@ sub continue {
 	select($old_fh); 
 
 	# load config and status
-	$self->load_status();
+	# $self->load_status();
+
+
+	$self->{maptiles} = new Minecraft::MapTiles(
+		zoom=>$self->{opts}->{MAP_ZOOM},
+		spread=>3,
+		width=>256,
+		height=>256,
+		dir=>"$FindBin::Bin/var/tiles", 
+		url=>"http://b.tile.openstreetmap.org/",
+		default_block=>"DEFAULT",
+		colours_file=>$self->{opts}->{COLOURS_FILE},
+	);
+
+
+	Minecraft::Config::load_config( $self->{opts}->{BLOCKS_FILE} );
 	 
 	$self->{blocks_config} = {};
-	foreach my $id ( keys %{$Minecraft::Config::BLOCKS} ) 
+	foreach my $id ( keys %{$Minecraft::Config::BLOCKS} )
 	{
 		my %default = %{$Minecraft::Config::BLOCKS->{DEFAULT}};
 		$self->{blocks_config}->{$id} = \%default;
 		bless $self->{blocks_config}->{$id}, "Minecraft::Projection::BlockConfig";
-		foreach my $field ( keys %{$self->{opts}->{BLOCKS}->{$id}} )
+		foreach my $field ( keys %{$Minecraft::Config::BLOCKS->{$id}} )
 		{
-			$self->{blocks_config}->{$id}->{$field} = $self->{opts}->{BLOCKS}->{$id}->{$field};
+			$self->{blocks_config}->{$id}->{$field} = $Minecraft::Config::BLOCKS->{$id}->{$field};
 		}	
 	}
 
@@ -324,6 +344,10 @@ sub continue {
 	while( scalar @todo ) {
 		my $region_id = shift @todo;
 		my $region_info = $self->{opts}->{REGIONS}->{$region_id};
+		if( !defined $region_info ) {
+			print Dumper( $self->{opts}->{REGIONS} );
+			die "Failed to load $region_id";
+		}
 
 		my $start_t = time();
 		print "Doing: #".($todo_at_start_count-scalar @todo)." of $todo_at_start_count areas of ${SQUARE_SIZE}x${SQUARE_SIZE} at ".$region_info->{x}.",".$region_info->{z}."\n";
@@ -387,8 +411,8 @@ sub render_xz
 
 	# config options based on value of block
 
-	my $bc = $Minecraft::Config::BLOCKS->{$block};
-	$bc = $Minecraft::Config::BLOCKS->{DEFAULT} if !defined $bc;
+	my $bc = $self->{blocks_config}->{$block};
+	$bc = $self->{blocks_config}->{DEFAULT} if !defined $bc;
 	if( !defined $bc) { die "No DEFAULT block"; }
 
 	if( $bc->{look_around} ) {
@@ -513,28 +537,6 @@ sub render_xz
 }
 
 
-
-package Minecraft::Projection::BlockConfig;
-use strict;
-use warnings;
-use Data::Dumper;
-use Carp;
-
-sub val
-{
-	my( $self, $context, $term, $default ) = @_;
-
-	my $v = $self->{$term};
-	$v=$default if( !defined $v );
-	return unless defined $v;
-
-	if( ref($v) eq "CODE" )
-	{
-		$v = &$v( $context );
-	}
-
-	return $v;
-}
 
 
 1;

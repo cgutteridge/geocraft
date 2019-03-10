@@ -5,8 +5,6 @@ use FindBin;
 use lib "$FindBin::Bin/lib";
 use Minecraft;
 use Elevation;
-use Minecraft::Projection;
-use Minecraft::MapTiles;
 use Getopt::Long;
 
 my $from;
@@ -29,18 +27,6 @@ my $tiles;
 my $grid;
 my $mapcoords;
 my $pointsfile;
-
-sub load_config
-{
-	my( $file ) = @_;
-	my $return;
-	unless ($return = do $file) {
-		warn "couldn't parse $file: $@" if $@;
-		warn "couldn't do $file: $!"    unless defined $return;
-		warn "couldn't run $file"       unless $return;
-		exit 1;
-	}
-}
 
 sub help 
 {
@@ -162,18 +148,6 @@ $OPTS->{SCALE} = $scale;
 $OPTS->{TILE_PATTERN} = $tiles;
 $OPTS->{POINTS_FILE} = $pointsfile;
 
-load_config( $OPTS->{COLOURS_FILE} );
-load_config( $OPTS->{BLOCKS_FILE} );
-$OPTS->{MAPTILES} = new Minecraft::MapTiles(
-	zoom=>$OPTS->{MAP_ZOOM},
-	spread=>3,
-	width=>256,
-	height=>256,
-	dir=>"$FindBin::Bin/var/tiles", 
-	url=>"http://b.tile.openstreetmap.org/",
-	default_block=>"DEFAULT",
-	map=>$Minecraft::Config::COLOURS,
-);
 
 ############################### ###############################
 
@@ -209,11 +183,11 @@ print "Cloning 'bedrock' as a base world\n";
 my $mc = new Minecraft( "$FindBin::Bin/saves" );
 my $world = $mc->world( $worldname, init_chunk=>sub {
 	my( $region, $cx,$cz ) = @_;
-#	for( my $off_z=0;$off_z<16;$off_z++ ) {
-#		for( my $off_x=0;$off_x<16;$off_x++ ) {
-#			$region->set_block( $cx*16+$off_x, 0, $cz*16+$off_z, 7 ); #bedrock
-#		}
-#	}
+	for( my $off_z=0;$off_z<16;$off_z++ ) {
+		for( my $off_x=0;$off_x<16;$off_x++ ) {
+			$region->set_block( $cx*16+$off_x, 0, $cz*16+$off_z, 7 ); #bedrock
+		}
+	}
 });
 
 my $p = Minecraft::Projection->new( $world, $OPTS );
@@ -305,7 +279,7 @@ if( $mapcoords )
 	$ANCHOR_E = 0;	
 	$ANCHOR_N = 0;	
 }
-$OPTS->{OFFSET_E} = -$ANCHOR_E;
+$OPTS->{OFFSET_E} = $ANCHOR_E;
 $OPTS->{OFFSET_N} = $ANCHOR_N;
 	
 print "Setting World Options\n";
