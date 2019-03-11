@@ -1,0 +1,72 @@
+
+# this makes churches and buildings have air inside rather than being solid
+# it requires a little more processing but is probably better for making 
+# adventure map bases
+
+$Minecraft::Config::BLOCKS = {
+
+	DEFAULT=> {
+		# block undef by default
+		# down_block undef by default
+		feature_filter => 2,
+		feature_min_height => 0,
+		# bottom_block undef by default
+		# under_block undef by default
+		# top_block undef by default
+		# over_block undef by default
+		up_block => 35.07, # dark grey wool for unknown features
+		# not sure we can cleanly make filtered features hollow yet
+		look_around=>1,
+	},
+	ALLOTMENT=>{ # course dirt
+		up_block => "18", # leaves
+		feature_filter => 0, # show low features
+	},
+	GRASS=>{ # grass
+		up_block => "18", # leaves
+		feature_filter => 0, # show low features
+		down_block => 3, # dirt
+		over_block => sub { 
+			my( $context ) = @_; 
+			if( $context->{feature_height} == 0 ) {
+				if( rand(10) < 1 ) { return 31.01; } # 10% grass 
+				if( rand(30) < 1 ) {
+					# 1 in 30 is a random flower
+					my @plants = qw/ 37 38 38.01 38.02 38.03 38.04 38.05 38.06 38.07 38.08 31.02 /;
+					return $plants[int rand scalar @plants];
+				}
+			}
+			return 0; # air
+		},
+	},
+	BUILDING=>{ # brick
+		feature_min_height => 3, # buildings always at least 3m high
+		block => 1, # stone under a building
+		look_around => 1,
+		up_block => sub { my( $context ) = @_; return 0 if( $context->is_inside ); return 45; },
+		over_block => 171.08, # light grey carpet
+	},
+	CHURCH=>{ # stone blocks
+		look_around => 1,
+		up_block => sub {
+			my( $context ) = @_;
+			return 0 if( $context->is_inside );
+			return 98;
+		},
+		block => 1, # stone under a building
+		feature_min_height => 3, # buildings always at least 3m high
+	},
+	WATER=>{ # water
+		feature_filter => 10, # remove small features on water (boats)
+		up_block => 1, # make big features stone (large boats & bridges)
+		under_block => 3, # base under the water.
+	},
+	SAND=>{ # sand
+		up_block => 5, # wood features on sand??
+		under_block => 3, # base under the sand.
+	},
+	CARPARK=>{ # gravel
+		under_block => 3, # base under the gravel.
+	},
+
+};
