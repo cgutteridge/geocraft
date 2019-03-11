@@ -369,7 +369,12 @@ sub continue {
 				next if( $x<$self->{opts}->{WEST} || $x>$self->{opts}->{EAST} );
 				$self->render_xz( $x,$z );
 			}
-			print ".";
+			if( ($z%32==0 ) { 
+				print "[".($z%SQUARE_SIZE)."]"; 
+			}
+			else { 
+				print "."; 
+			}
 		}		
 		print " (".(time()-$start_t)." seconds)";
 		print "\n";
