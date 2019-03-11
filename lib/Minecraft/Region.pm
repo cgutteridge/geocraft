@@ -250,12 +250,13 @@ sub add_sign
 		Text4 => (bless { _name=>"Text4", _value=> encode_json( { "bold"=>1, "text"=>"§l".$lines[3] } ) }, 'Minecraft::NBT::String'),
 	}, "Minecraft::NBT::Compound";
 
-#print Dumper( $data );
 	# doing set_block above should force the chunk to exist
 	my( $chunk_x, $chunk_z ) = $self->chunk_xz($rel_x,$rel_z);
 	my $chunk = $self->{$chunk_z}->{$chunk_x}->{chunk};
-
+	
 	push @{ $chunk->{Level}->{TileEntities}->{_value} }, $data;
+
+	print "[ADDED SIGN ".join( "/", @lines )."]";
 }
 
 sub set_block

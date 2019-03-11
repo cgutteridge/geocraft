@@ -3,6 +3,7 @@ package Minecraft;
 use strict;
 use warnings;
 use Minecraft::Config;
+use Minecraft::Context;
 use Minecraft::NBT;
 use Minecraft::NBT::Tag;
 use Minecraft::Region;

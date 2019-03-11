@@ -6,6 +6,7 @@ use lib "$FindBin::Bin/lib";
 use Minecraft;
 use Elevation;
 use Getopt::Long;
+use WikiPoints;
 
 use strict;
 use warnings;
@@ -297,7 +298,9 @@ else {
 	}
 	$OPTS->{OFFSET_E} = $ANCHOR_E;
 	$OPTS->{OFFSET_N} = $ANCHOR_N;
-		
+print "OFFSET_E : ".$OPTS->{OFFSET_E}."\n";
+	
+	####################
 	print "Setting World Options\n";
 	my $nbt = Minecraft::NBT->from_gzip_file( "$FindBin::Bin/saves/$worldname/level.dat" );
 	$nbt->{Data}->{LevelName}->{_value} = $worldname;
@@ -311,7 +314,11 @@ else {
 	}
 	$nbt->to_gzip_file( "$FindBin::Bin/saves/$worldname/level.dat" );
 	# done setting world
+	####################
 	
+	####################
+	# adding points
+	####################
 	if( $pointsfile ) {
 		my $points = [];
 		open( my $pfh, "<", $pointsfile ) || die "can't read $pointsfile: $!";
@@ -326,13 +333,16 @@ else {
 	}
 
 	if( $wikipoints ) {
-		my( $lat1, $long1 ) = $p->grid_to_ll($OPTS->{EAST1},$OPTS->{NORTH1});
-		my( $lat2, $long2 ) = $p->grid_to_ll($OPTS->{EAST2},$OPTS->{NORTH2});
+		my( $lat1, $long1 ) = $p->grid_to_ll($OPTS->{EAST1}+$OPTS->{OFFSET_E},-$OPTS->{NORTH1}+$OPTS->{OFFSET_N});
+		my( $lat2, $long2 ) = $p->grid_to_ll($OPTS->{EAST2}+$OPTS->{OFFSET_E},-$OPTS->{NORTH2}+$OPTS->{OFFSET_N});
 		my $points = Minecraft::WikiPoints::get( $lat1,$long1, $lat2,$long2 );
 		foreach my $point ( @$points ) {
 			$p->add_point_ll( @$point ); # lat,long,label
 		}
 	}
+	####################
+	# done points
+	####################
 	
 	$p->configure( %$OPTS );
 	print "Projection created. MC0,0 = ${ANCHOR_E}E ${ANCHOR_N}N\n"; 

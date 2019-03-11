@@ -3,7 +3,6 @@ package Minecraft::Projection;
 use Geo::Coordinates::OSGB;
 use Math::Trig;
 use Data::Dumper;
-use Minecraft::Context;
 use Geo::Coordinates::OSTN02;
 use JSON::PP;
 use Carp;
@@ -24,7 +23,6 @@ sub new
 
 	my $self = bless {},$class;
 	$self->{world} = $world;
-	$self->{points} = {};
 	$self->{opts} = $opts; # opts is the bit we save to disk
 
 	return $self;
@@ -35,7 +33,6 @@ sub restore {
 	
 	my $self = bless {},$class;
 	$self->{world} = $world;
-	$self->{points} = {};
 	$self->read_status;
 
 	return $self;
@@ -159,10 +156,10 @@ sub add_point
 	$x = int $x;
 	$z = int $z; 
 
-	if( !defined $self->{opts}->{points}->{$z}->{$x} ) {
-		$self->{opts}->{points}->{$z}->{$x} = [];
+	if( !defined $self->{opts}->{POINTS}->{$z}->{$x} ) {
+		$self->{opts}->{POINTS}->{$z}->{$x} = [];
 	}
-	push @{$self->{opts}->{points}->{$z}->{$x}}, { label=>$label, status=>"todo" };
+	push @{$self->{opts}->{POINTS}->{$z}->{$x}}, { label=>$label, status=>"todo" };
 }
 		
 	
@@ -531,18 +528,20 @@ sub render_xz
 		$self->{world}->set_block( $x, $y, $z, $blocks->{$offset} );
 		$maxy=$y if( $y>$maxy );
 	}
-	if( defined $self->{points}->{$z} ) {
-		if( defined $self->{points}->{$z}->{$x} ) {
+	if( defined $self->{opts}->{POINTS}->{$z} && defined $self->{opts}->{POINTS}->{$z}->{$x} ) {
+		
+		foreach my $point ( @{$self->{opts}->{POINTS}->{$z}->{$x}} ) {
 			if( $maxy+2< $self->{opts}->{TOP_OF_WORLD} ) {
 				my $stand_y = $maxy+1; 
 				my $sign_y = $maxy+2; 
 				$maxy+=2;
 				
 				$self->{world}->set_block( $x,$stand_y,$z, 5 ); # wood for it to stand on
-
-				my $xz_points = $self->{points}->{$z}->{$x};
-				my $text = join( ", ", @$xz_points );
+	
+				my $text = join( ", ", $x,$z, $point->{label} );
 				$self->{world}->add_sign( $x,$sign_y,$z, $text );
+				$point->{status} = "done";
+				$maxy+=2;
 			}
 		}
 	}
