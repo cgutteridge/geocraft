@@ -45,6 +45,7 @@ sub tile
 		my $file = $self->{dir}."/$fn";
 		if( !-e $file )
 		{
+			print "[tile]";
 			sleep(2);
 			my $cmd = "curl -s '$url' > '$file'";
 			#print "$cmd\n";
