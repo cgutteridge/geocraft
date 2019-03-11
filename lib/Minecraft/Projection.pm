@@ -369,7 +369,7 @@ sub continue {
 				next if( $x<$self->{opts}->{WEST} || $x>$self->{opts}->{EAST} );
 				$self->render_xz( $x,$z );
 			}
-			if( ($z%32==0 ) { 
+			if( ($z%32)==0 ) { 
 				print "[".($z % $SQUARE_SIZE)."]"; 
 			}
 			else { 
