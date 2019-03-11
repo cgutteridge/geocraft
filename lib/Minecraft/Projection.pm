@@ -370,7 +370,7 @@ sub continue {
 				$self->render_xz( $x,$z );
 			}
 			if( ($z%32==0 ) { 
-				print "[".($z%SQUARE_SIZE)."]"; 
+				print "[".($z % $SQUARE_SIZE)."]"; 
 			}
 			else { 
 				print "."; 
