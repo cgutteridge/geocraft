@@ -538,7 +538,7 @@ sub render_xz
 				
 				$self->{world}->set_block( $x,$stand_y,$z, 5 ); # wood for it to stand on
 	
-				my $text = join( ", ", $x,$z, $point->{label} );
+				my $text = $point->{label};
 				$self->{world}->add_sign( $x,$sign_y,$z, $text );
 				$point->{status} = "done";
 				$maxy+=2;

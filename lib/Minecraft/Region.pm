@@ -218,7 +218,7 @@ sub add_sign
 {
 	my( $self,   $rel_x,$y,$rel_z, $x,$z, $text ) = @_;
 
-	my $SIGNWIDTH = 16;
+	my $SIGNWIDTH = 15;
 	my @lines = ();
 	while( length( $text ) )
 	{
