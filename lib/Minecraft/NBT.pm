@@ -2,6 +2,7 @@ package Minecraft::NBT;
 use IO::Uncompress::Gunzip qw(gunzip $GunzipError) ;
 use strict;
 use warnings;
+use Data::Dumper;
 
 sub from_file
 {
@@ -457,6 +458,9 @@ sub put_tag_list
 	$self->put_string( $tag->{_name} ) if( $needs_name );
 
 	$self->put_byte( $tag->{_type} );
+if( $tag->{_type}==0 && scalar(@{$tag->{_value}})>0 ) {
+die Dumper($tag);
+}
 	$self->pute( pack( 'l', scalar(@{$tag->{_value}}) ) );
 	foreach my $tag_i ( @{$tag->{_value}} )
 	{

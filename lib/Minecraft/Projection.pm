@@ -419,8 +419,8 @@ sub render_xz
 
 	my $context = $self->context( $x, $z );
 	my $block = $context->{block};
-	my $el = $context->{elevation};
-	my $feature_height = $context->{feature_height};
+	my $el = int $context->{elevation};
+	my $feature_height = int $context->{feature_height};
 
 
 	# we now have $block, $el, $SEA_LEVEL and $feature_height

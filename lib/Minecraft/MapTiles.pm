@@ -41,12 +41,13 @@ sub tile
 	my $attempts = 0;
 	while( !defined $self->{tiles}->{$fn} )
 	{
+		my $PAUSE = 2;
 		my $url = $self->{url}.$self->{zoom}."/$xtile/$ytile.png";
 		my $file = $self->{dir}."/$fn";
 		if( !-e $file )
 		{
 			print "[tile]";
-			sleep(2);
+			sleep($PAUSE);
 			my $cmd = "curl -s '$url' > '$file'";
 			#print "$cmd\n";
 			`$cmd`;
@@ -60,8 +61,9 @@ sub tile
 			{
 				die "Failed lots of times trying to load $url. Giving up.";
 			}
-			print "Failed to read $url (attempt $attempts)\n";
-			sleep(2);
+			print "Failed to read $url (attempt $attempts). Waiting $PAUSE seconds\n";
+			$PAUSE*=2;
+			sleep($PAUSE);
 			print "OK, let's try that again...\n";
 		}
 	}

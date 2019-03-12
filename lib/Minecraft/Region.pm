@@ -88,7 +88,6 @@ sub add_chunk
 {
 	my($self,   $c_x, $c_z ) = @_;
 
-
 	my $level = bless { _name=>"Level" }, "Minecraft::NBT::Compound";	
 	$self->{$c_z}->{$c_x} = {
 		timestamp => time(),
@@ -110,7 +109,6 @@ sub add_chunk
 	{
 		&{$self->{opts}->{init_chunk}}( $self, $c_x, $c_z );
 	}
-
 	$self->{_changed} = 1;
 }
 
@@ -254,8 +252,8 @@ sub add_sign
 	my( $chunk_x, $chunk_z ) = $self->chunk_xz($rel_x,$rel_z);
 	my $chunk = $self->{$chunk_z}->{$chunk_x}->{chunk};
 	
+	$chunk->{Level}->{TileEntities}->{_type} = 10; # for the ones that got messed up
 	push @{ $chunk->{Level}->{TileEntities}->{_value} }, $data;
-
 	print "[ADDED SIGN ".join( "/", @lines )."]";
 }
 
