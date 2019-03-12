@@ -345,16 +345,34 @@ sub continue {
 
 	# do square
 	my @todo = ();
+	my $xt=0;
+	my $zt=0;
 	foreach my $k ( keys %{$self->{opts}->{REGIONS}} ) {
 		my $region = $self->{opts}->{REGIONS}->{$k};
 		if( !defined $region->{status} || $region->{status} eq "todo" ) {
 			push @todo, $k; 
+			$xt += $self->{opts}->{REGIONS}->{$k}->{x};
+			$zt += $self->{opts}->{REGIONS}->{$k}->{z};
 		}
 	}	
+	my $xmid = $xt/(scalar @todo);
+	my $zmid = $zt/(scalar @todo);
+
+	@todo = sort {
+		my $ra = $self->{opts}->{REGIONS}->{$a};
+		my $rb = $self->{opts}->{REGIONS}->{$b};
+		my $ad = ($ra->{x}-$xmid)*($ra->{x}-$xmid) + ($ra->{z}-$zmid)*($ra->{z}-$zmid);
+		my $bd = ($rb->{x}-$xmid)*($rb->{x}-$xmid) + ($rb->{z}-$zmid)*($rb->{z}-$zmid);
+		return $ad <=> $bd;
+	} @todo;
+
 #			$self->{opts}->{REGIONS}->{"$x,$z"} = {x=>$x, z=>$z, status=>"todo"};
 	my $todo_at_start_count = scalar @todo;
 	while( scalar @todo ) {
 		my $region_id = shift @todo;
+
+
+
 		my $region_info = $self->{opts}->{REGIONS}->{$region_id};
 		if( !defined $region_info ) {
 			print Dumper( $self->{opts}->{REGIONS} );
