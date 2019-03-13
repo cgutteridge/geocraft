@@ -39,9 +39,9 @@ sub tile
 	my $fn = $zoom."_${xtile}_${ytile}.png";
 
 	my $attempts = 0;
+	my $PAUSE = 2;
 	while( !defined $self->{tiles}->{$fn} )
 	{
-		my $PAUSE = 2;
 		my $url = $self->{url}.$self->{zoom}."/$xtile/$ytile.png";
 		my $file = $self->{dir}."/$fn";
 		if( !-e $file )
@@ -61,8 +61,8 @@ sub tile
 			{
 				die "Failed lots of times trying to load $url. Giving up.";
 			}
-			print "Failed to read $url (attempt $attempts). Waiting $PAUSE seconds\n";
 			$PAUSE*=2;
+			print "Failed to read $url (attempt $attempts). Waiting $PAUSE seconds\n";
 			sleep($PAUSE);
 			print "OK, let's try that again...\n";
 		}
