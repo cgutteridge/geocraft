@@ -223,7 +223,7 @@ sub add_sign
 		$text =~ s/\s*$//;
 		$text =~ s/^\s*//;
 		my $line;
-		if( $text =~ m/^(.{1,16})(\s|$)/ ) {
+		if( $text =~ m/^(.{1,$SIGNWIDTH})(\s|$)/ ) {
 			$line = $1;
 		} else {
 			$line = substr( $text, 0, $SIGNWIDTH );	
