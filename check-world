@@ -1,0 +1,64 @@
+#!/usr/bin/env perl
+
+use Data::Dumper;
+use FindBin;
+use lib "$FindBin::Bin/lib";
+use Minecraft;
+use Getopt::Long;
+
+my $worldname;
+my $command;
+my $help;
+
+# Load every region in a world just to check it loads
+
+BEGIN { 
+	sub help 
+	{
+		print "$0 <world-name> <perl-code>\n";
+	}
+
+	if( !GetOptions (
+              	"help"  => \$help,
+	)) {
+		print STDERR ("Error in command line arguments\n");
+		help();
+		exit( 1 );
+	}
+
+	($worldname, $command) = @ARGV;
+}
+
+use strict;
+use warnings;
+
+if( $help )
+{
+	help();
+	exit( 0 );
+}
+
+
+if( !defined $worldname )
+{
+	die "No worldname given";
+}
+
+if(! -e "$FindBin::Bin/saves/$worldname" )
+{
+	die "Can't find world $worldname";
+}
+
+my $mc = new Minecraft( "$FindBin::Bin/saves" );
+my $world = $mc->world( $worldname );
+my @regions = $world->regions;
+for( my $reg_i=0;$reg_i<scalar @regions; $reg_i++ ) {
+	my $r_pos = $regions[$reg_i];
+	my $region= $world->region( $r_pos->[0], $r_pos->[1] );
+	print "Region ".($reg_i+1)." of ".(scalar @regions)." [".$r_pos->[0].",".$r_pos->[1]."] .. \n";
+	delete $world->{regions}->{$r_z}->{$r_x};
+
+}
+print "DONE\n";
+
+exit;
