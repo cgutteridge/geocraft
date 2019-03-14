@@ -55,7 +55,9 @@ my @regions = $world->regions;
 for( my $reg_i=0;$reg_i<scalar @regions; $reg_i++ ) {
 	my $r_pos = $regions[$reg_i];
 	my $region= $world->region( $r_pos->[0], $r_pos->[1] );
-	print "Region ".($reg_i+1)." of ".(scalar @regions)." [".$r_pos->[0].",".$r_pos->[1]."] .. \n";
+	my $r_x = $region->{opts}->{r_x};
+	my $r_z = $region->{opts}->{r_z};
+	print "Region ".($reg_i+1)." of ".(scalar @regions)." [".$r_pos->[0].",".$r_pos->[1]."] (".($r_pos->[0]*512).",".($r_pos->[1]*512).")\n";
 	delete $world->{regions}->{$r_z}->{$r_x};
 
 }
