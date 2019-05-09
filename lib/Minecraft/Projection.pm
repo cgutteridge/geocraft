@@ -355,6 +355,12 @@ sub continue {
 			$zt += $self->{opts}->{REGIONS}->{$k}->{z};
 		}
 	}	
+
+	if( scalar @todo == 0 ) {
+		print "Nothing to do\n";
+		return;
+	}
+	
 	my $xmid = $xt/(scalar @todo);
 	my $zmid = $zt/(scalar @todo);
 
