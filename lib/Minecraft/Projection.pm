@@ -53,7 +53,7 @@ sub write_status {
 
 	my $filename = $self->{world}->{dir}."/map-maker-status.json";
 	open( my $fh, ">:utf8", $filename ) || die "failed to open (for writing) $filename: $!";
-  	syswrite( $fh, encode_json( $self->{opts} ));
+  	print $fh encode_json( $self->{opts} );
   	close $fh;
 }
 
