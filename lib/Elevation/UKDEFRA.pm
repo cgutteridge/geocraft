@@ -174,13 +174,20 @@ sub download
 
 		$self->{loaded}->{$catalog_cache_file}=1;
 
-		# later maybe look at years, but with luck composite will do
 		$self->{zips}->{$code} = { DSM=>[], DTM=>[] };
+		# Query .json for relevant LiDAR data - Most recent is selected
 		foreach my $model_i ( qw/ DSM DTM / ) {
-			foreach my $k ( keys %{$datasets->{"LIDAR Composite $model_i"}->{Latest}->{"$model_i 1M"}} ) {
-				push @{$self->{zips}->{$code}->{$model_i}}, $datasets->{"LIDAR Composite $model_i"}->{Latest}->{"$model_i 1M"}->{$k};
-			}
+    			my $maxyear = 0;
+    			foreach my $k ( keys %{$datasets->{"LIDAR Composite $model_i"}} ) {
+        			if ($k > $maxyear) {
+            			$maxyear = $k;
+        			}
+    			}
+    			foreach my $k ( keys %{$datasets->{"LIDAR Composite $model_i"}->{$maxyear}->{"$model_i 1M"}} ) {
+        			push @{$self->{zips}->{$code}->{$model_i}}, $datasets->{"LIDAR Composite $model_i"}->{$maxyear}->{"$model_i 1M"}->{$k};
+    			}
 		}
+
 print Dumper($self->{zips});
 	}
 
