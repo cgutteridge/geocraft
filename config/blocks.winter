@@ -14,11 +14,11 @@ $Minecraft::Config::BLOCKS = {
 		over_block => 78,
 	},
 	ALLOTMENT=>{ # course dirt
-		up_block => "18.01", # leaves
+		up_block => "18.05", # leaves
 		feature_filter => 0, # show low features
 	},
 	GRASS=>{ # grass
-		up_block => "18.01", # leaves
+		up_block => "18.05", # leaves
 		feature_filter => 0, # show low features
 		down_block => 3, # dirt
 	},
