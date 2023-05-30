@@ -30,8 +30,7 @@ END
 print $sparql;
 	my $url = "http://dbpedia.org/sparql?default-graph-uri=http%3A%2F%2Fdbpedia.org&query=".urlencode($sparql)."&format=application%2Fsparql-results%2Bjson&CXML_redir_for_subjs=121&CXML_redir_for_hrefs=&timeout=30000&debug=on&run=+Run+Query+";
 	print "Getting URL: $url\n";
-	my $json = `curl -s '$url' `;
-
+	my $json = `curl -L -s '$url' `;
 	my $info = decode_json $json;
 
 	my $points = [];
