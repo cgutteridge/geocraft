@@ -7,6 +7,7 @@ use Minecraft;
 use Elevation;
 use Getopt::Long;
 use WikiPoints;
+use StreetSigns;
 
 use strict;
 use warnings;
@@ -32,6 +33,7 @@ my $grid;
 my $mapcoords;
 my $pointsfile;
 my $wikipoints;
+my $streetsigns;
 my $continue;
 
 ############################### ###############################
@@ -68,6 +70,7 @@ sub help
 	print "  --colours <file>\n";
 	print "  --points <file> // a tsv with Lat<tab>Long<tab>Label \n";
 	print "  --wikipoints\n";
+	print "  --streetsigns\n";
 	print "  --elevation <plugin>\n";
 	print "  --rotation <degrees>\n";
 	print "  --scale <factor> // 2.0 means block is 50cm. 0.5 means MC block is 2m\n";
@@ -98,6 +101,7 @@ if( !GetOptions (
 	"grid=s" => \$grid,
 	"points=s" => \$pointsfile,
 	"wikipoints" => \$wikipoints,
+	"streetsigns" => \$streetsigns,
 	"continue" => \$continue,
 )) {
 	print STDERR ("Error in command line arguments\n");
@@ -340,6 +344,19 @@ print "OFFSET_E : ".$OPTS->{OFFSET_E}."\n";
 			$p->add_point_ll( @$point ); # lat,long,label
 		}
 	}
+
+	if( $streetsigns ) {
+		my( $lat1, $long1 ) = $p->grid_to_ll($OPTS->{EAST1}+$OPTS->{OFFSET_E},-$OPTS->{NORTH1}+$OPTS->{OFFSET_N});
+		my( $lat2, $long2 ) = $p->grid_to_ll($OPTS->{EAST2}+$OPTS->{OFFSET_E},-$OPTS->{NORTH2}+$OPTS->{OFFSET_N});
+		my $points = Minecraft::StreetSigns::get( $lat1,$long1, $lat2,$long2 );
+		foreach my $point ( @$points ) {
+			$p->add_point_ll( @$point ); # lat,long,label
+		}
+	}
+
+
+
+
 	####################
 	# done points
 	####################

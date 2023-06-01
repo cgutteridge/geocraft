@@ -9,6 +9,7 @@ use POSIX;
 use Data::Dumper;
 use JSON::PP;
 use Archive::Zip qw/ :ERROR_CODES /;
+use Image::ExifTool qw(:Public);
 use strict;
 use warnings;
 
@@ -27,8 +28,8 @@ sub new
 		correction => $correction }, $class;
 
 	$self->{cellsize} = 1;
-	$self->{nrows} = 1000;
-	$self->{ncols} = 1000;
+	$self->{nrows} = 5000;
+	$self->{ncols} = 5000;
 	$self->{filesize_e} = $self->{ncols}*$self->{cellsize};
 	$self->{filesize_n} = $self->{nrows}*$self->{cellsize};
 
@@ -39,7 +40,7 @@ sub new
 		while( my $file = readdir($hdir))
 		{
 			next if( $file =~ m/^\./ );
-			next if( $file !~ m/\.asc$/ );
+			next if( $file !~ m/\.tif$/ );
 			$self->add_file( "$height_dir/$model/$file", $model );
 		}
 	}
@@ -172,16 +173,27 @@ sub download
 			$datasets->{$cdataset->{productName}} = $dataset;
 		}
 
-		$self->{loaded}->{$catalog_cache_file}=1;
 
+		$self->{loaded}->{$catalog_cache_file}=1;
 		# later maybe look at years, but with luck composite will do
 		$self->{zips}->{$code} = { DSM=>[], DTM=>[] };
+
+		# this is to deal with the inconsistant naming in DEFRA DTM/DSM
+		my $SETMAP = {
+		       	"DSM"=>"LIDAR Composite Last Return DSM",
+	       		"DTM"=>"LIDAR Composite DTM" };
 		foreach my $model_i ( qw/ DSM DTM / ) {
-			foreach my $k ( keys %{$datasets->{"LIDAR Composite $model_i"}->{Latest}->{"$model_i 1M"}} ) {
-				push @{$self->{zips}->{$code}->{$model_i}}, $datasets->{"LIDAR Composite $model_i"}->{Latest}->{"$model_i 1M"}->{$k};
+			my $target_set = $SETMAP->{$model_i};
+			my $set = $datasets->{$target_set};
+			# pick the latest key from this set. Hopefully it's the latest data although
+			# currently both composite DTM & DSM seem to only have one year
+			my @years = sort keys %$set;
+			my $models = $set->{$years[0]};
+			
+		       	foreach my $key ( keys %{$models->{"$model_i 1M"}} ) {
+				push @{$self->{zips}->{$code}->{$model_i}}, $models->{"$model_i 1M"}->{$key};
 			}
 		}
-print Dumper($self->{zips});
 	}
 
 	# keep trying packs until we get a hit for this file
@@ -216,9 +228,10 @@ sub add_zip
 	foreach my $member ( $zip->members )
 	{
 		my $file = $self->{height_dir}."/$model/".$member->fileName;
-		print "Adding: $file\n";
-		$member->extractToFileNamed( $file );
-		$self->add_file( $file, $model );
+		if( $file=~m/\.tif$/ ) {
+			$member->extractToFileNamed( $file );
+			$self->add_file( $file, $model );
+		}
 	}
 	unlink( $tmp_file );
 }
@@ -226,6 +239,32 @@ sub add_zip
 sub add_file
 {
 	my( $self, $filename, $model ) = @_;
+
+	print "Adding: $filename\n";
+	my $info = ImageInfo($filename);
+
+	#	my $metadata = {
+		#	cellsize => 1,
+		#ncols => $info->{ImageWidth},
+		#nrows => $info->{ImageHeight}
+	}#;
+	$#info->{GDALMetadata} =~ m/<Item[^>]+name="STATISTICS_MINIMUM"[^>]*>([^<]*)</;
+	$#metadata->{min} = $1;
+	$#info->{GDALMetadata} =~ m/<Item[^>]+name="STATISTICS_MAXIMUM"[^>]*>([^<]*)</;
+	$#metadata->{max} = $1;
+	#
+	## assuming the tie point anchors at 0,0,0. hopefully
+	#my( @tieparts ) = split / /, $info->{ModelTiePoint};
+	#$metadata->{xllcorner} = $tieparts[3];
+	#$metadata->{yllcorner} = $tieparts[4]-$info->{ImageHeight};
+	#print Dumper( $metadata );
+
+	my $GDAL_TRANSLATE = "/Applications/QGIS.app/Contents/MacOS/bin/gdal_translate";
+
+		/Applications/QGIS.app/Contents/MacOS/bin/gdal_translate -of AAIGrid -ot Int32   /Users/cjg/Projects/geocraft/var/lidar/DTM/SU41nw_DTM_1m.tif /tmp/bar.asc
+
+
+
 
 	open( my $fh, "<", $filename ) 
 		|| die "can't read elevation file $filename: $!";
@@ -254,6 +293,25 @@ sub add_file
 		return;
 	}
 	$self->{files}->{$model}->{$metadata->{yllcorner}}->{$metadata->{xllcorner}} = $filename;
+
+
+
+	if( defined $self->{ncols} && $metadata->{ncols} != $self->{ncols} )
+	{
+		print "$filename had ncols=".$metadata->{ncols}.", expected ".$self->{ncols}.", skipping.\n";
+		return;
+	}
+	if( defined $self->{nrows} && $metadata->{nrows} != $self->{nrows} )
+	{
+		print "$filename had nrows=".$metadata->{nrows}.", expected ".$self->{nrows}.", skipping.\n";
+		return;
+	}
+	if( defined $self->{cellsize} && $metadata->{cellsize} != $self->{cellsize} )
+	{
+		print "$filename had cellsize=".$metadata->{cellsize}.", expected ".$self->{cellsize}.", skipping.\n";
+		return;
+	}
+	$self->{files}->{$model}->{$metadata->{yllcorner}}->{$metadata->{xllcorner}} = $filename;
 }
 
 # STATIC
@@ -261,7 +319,7 @@ sub ll_to_en
 {
 	my( $lat, $long ) = @_;
 
-	my ($x, $y) = Geo::Coordinates::OSGB::ll_to_grid($lat, $long, 'ETRS89'); # or 'WGS84'
+	my ($x, $y) = Geo::Coordinates::OSGB::ll_to_grid($lat, $long, 'WGS84'); # or 'OSGB36'
 	return Geo::Coordinates::OSTN02::ETRS89_to_OSGB36($x, $y );
 }
 # STATIC
@@ -329,15 +387,11 @@ sub cell_elevation
 {
 	my( $self, $model, $cell_e, $cell_n ) = @_;
 
-	if( defined $self->{cells}->{$model}->{$cell_n}->{$cell_e} )
-	{
-		return $self->{cells}->{$model}->{$cell_n}->{$cell_e};
-	}
 	my $file_e = POSIX::floor( $cell_e / $self->{filesize_e} )*$self->{filesize_e};
 	my $file_n = POSIX::floor( $cell_n / $self->{filesize_n} )*$self->{filesize_n};
 
 	my $fn = $self->{files}->{$model}->{ $file_n }->{ $file_e };
-	
+print "$cell_e,$cell_n -- $file_e,$file_n -- ".($fn?$fn:"NO FILE")."\n";
 	if( !defined $fn ) 
 	{
 		# attempt to download lidar
@@ -350,45 +404,22 @@ sub cell_elevation
 			return;
 		}
 	}
-	if( $self->{loaded}->{$fn} )
+	if( ! $self->{loaded}->{$fn} )
 	{
-		# don't try to load the same file twice
-		return undef;
-	}
-	print "LOADING LIDAR: $fn\n";
-	
-	open( my $hfh, "<", $fn ) || die "can't read $fn";
-	my @lines = <$hfh>;
-	close $hfh;
-	my $lidar = {};
-	for( my $i=0; $i<6; ++$i )
-	{
-		my $line = $lines[$i];
-		$line =~ s/[\n\r]//g;
-		if( $line =~ m/^([^\s]+)\s+(.*)$/ )
-		{
-			$lidar->{uc $1} = $2;
-		}
-		else
-		{
-			die "Bad line in .asc file: $line";
-		}
-	}
+		print "LOADING LIDAR: $fn\n";
+		my $meta = $self->{meta}->{$model}->{ $file_n }->{ $file_e };
+use Imager;
+my $image = Imager->new;
+$image->read(file => $fn )
+  or die $image->errstr;
+		exit;
+#	for(my $i=0; $i<$self->{filesize_n}; ++$i ) {
+	#	}
+	print Dumper( $meta );
+	exit;
 
-	for( my $i=6; $i<scalar(@lines); ++$i )
-	{
-		my $line = $lines[$i];
-		$line =~ s/\n//g;
-		$line =~ s/\r//g;
-		$line =~ s/\s*$//g;
-		$line =~ s/^\s*//g;
-		my @row = split( / /, $line );
-		CELL: for( my $j=0; $j<scalar(@row); $j++ )
-		{
-			$self->{cells}->{$model}->{ $file_n + ($lidar->{NROWS}-1-($i-6))*$self->{cellsize} }->{ $file_e + $j*$self->{cellsize} } = $row[$j];
-		}
+		$self->{loaded}->{$fn} = 1;
 	}
-	$self->{loaded}->{$fn} = 1;
 
 	return $self->{cells}->{$model}->{$cell_n}->{$cell_e};
 }
