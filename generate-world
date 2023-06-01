@@ -379,13 +379,13 @@ sub postcode_to_en
 {
 	my( $postcode ) = @_;
 
-	my $url = "http://data.ordnancesurvey.co.uk/doc/postcodeunit/$postcode.json";
+	my $url = "https://data.ordnancesurvey.co.uk/doc/postcodeunit/$postcode.json";
 	print "Getting postcode: $url\n";
 	my $json = `curl -s $url`;
 	my $data = decode_json $json;
 	my $pdata = $data->{"http://data.ordnancesurvey.co.uk/id/postcodeunit/$postcode"};
-    	my $e = $pdata->{'http://data.ordnancesurvey.co.uk/ontology/spatialrelations/easting'}->[0]->{value};
-    	my $n = $pdata->{'http://data.ordnancesurvey.co.uk/ontology/spatialrelations/northing'}->[0]->{value};
+    	my $e = $pdata->{'http://data.ordnancesurvey.co.uk/ontology/spatialrelations/easting'}->[0]->{value}+0;
+    	my $n = $pdata->{'http://data.ordnancesurvey.co.uk/ontology/spatialrelations/northing'}->[0]->{value}+0;
 	return( $e,$n );
 }
 
