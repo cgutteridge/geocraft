@@ -15,6 +15,15 @@ perl -MArchive::ZIP -e 'print "OK\n";'
 
 Which will say "OK" if it's installed, and otherwise will report an error.
 
+* gdal_translate
+
+Annoyingly DEFRA have moved from the nice easy .asc file format to a fancypants format called GeoTiff. I can't find a way to read it easily, but there's a tool called gdal_translate which handles it nicely and can convert it into .asc format. As a stopgap the file lib/Elevation/UKDEFRA.pm has the location of this script (on my computer). 
+
+my $GDAL_TRANSLATE = "/Applications/QGIS.app/Contents/MacOS/bin/gdal_translate";
+
+You will need to either install gdal_translate and put the path to it into the .pm file OR use --elevation Flat to generate the map without LIDAR. 
+
+
 ## Generating a World
 
 The `generate-world` command is used to create your minecraft world. It provides 
@@ -93,7 +102,8 @@ You must use either postcode with size, centre with size or specify a from & to.
 * --mapzoom `zoom` :: use a different level of detail from open streetmap. Outside cities this should be lowered to avoid forcing open street map to generate high resultion tiles of empty space. Be a good citizen!
 * --tiles `tile-pattern` :: use an alternate map tile server.
 * --grid `projection` :: use an alternate map projection. Default is OSGB36 for UK stuff. For anywhere else, use --grid MERC (combined with --elevation Flat)
-
+* --wikipoints :: Downloads a list of wikipedia pages with locations in scope and adds signposts for them
+* --streetsigns :: Downloads a list of roads from Open Street Map and puts in signposts 
 
 ## Attribution & Copyright
 
