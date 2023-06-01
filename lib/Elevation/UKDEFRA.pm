@@ -9,10 +9,10 @@ use POSIX;
 use Data::Dumper;
 use JSON::PP;
 use Archive::Zip qw/ :ERROR_CODES /;
-use Image::ExifTool qw(:Public);
 use strict;
 use warnings;
 
+my $GDAL_TRANSLATE = "/Applications/QGIS.app/Contents/MacOS/bin/gdal_translate";
 
 sub new 
 {
@@ -238,33 +238,17 @@ sub add_zip
 
 sub add_file
 {
-	my( $self, $filename, $model ) = @_;
+	my( $self, $tif_filename, $model ) = @_;
+
+	my $filename = $tif_filename;
+	$filename =~ s/\.tif$/.asc/;
+
+	if( !-e $filename ) {
+		print "Converting: $tif_filename to ASC using gdal_translate\n";
+		`$GDAL_TRANSLATE -of AAIGrid -ot Int32 $tif_filename $filename`;
+	}
 
 	print "Adding: $filename\n";
-	my $info = ImageInfo($filename);
-
-	#	my $metadata = {
-		#	cellsize => 1,
-		#ncols => $info->{ImageWidth},
-		#nrows => $info->{ImageHeight}
-	}#;
-	$#info->{GDALMetadata} =~ m/<Item[^>]+name="STATISTICS_MINIMUM"[^>]*>([^<]*)</;
-	$#metadata->{min} = $1;
-	$#info->{GDALMetadata} =~ m/<Item[^>]+name="STATISTICS_MAXIMUM"[^>]*>([^<]*)</;
-	$#metadata->{max} = $1;
-	#
-	## assuming the tie point anchors at 0,0,0. hopefully
-	#my( @tieparts ) = split / /, $info->{ModelTiePoint};
-	#$metadata->{xllcorner} = $tieparts[3];
-	#$metadata->{yllcorner} = $tieparts[4]-$info->{ImageHeight};
-	#print Dumper( $metadata );
-
-	my $GDAL_TRANSLATE = "/Applications/QGIS.app/Contents/MacOS/bin/gdal_translate";
-
-		/Applications/QGIS.app/Contents/MacOS/bin/gdal_translate -of AAIGrid -ot Int32   /Users/cjg/Projects/geocraft/var/lidar/DTM/SU41nw_DTM_1m.tif /tmp/bar.asc
-
-
-
 
 	open( my $fh, "<", $filename ) 
 		|| die "can't read elevation file $filename: $!";
@@ -274,27 +258,9 @@ sub add_file
 		my $line = readline( $fh );
 		chomp $line;
 		my( $k,$v ) = split( /\s+/, $line );
-		$metadata->{$k}=$v;
+		$metadata->{$k}=$v+0; # adding 0 forces it to be a number and removes trailing .0000
 	}	
 	close( $fh );
-	if( defined $self->{ncols} && $metadata->{ncols} != $self->{ncols} )
-	{
-#		print "$filename had ncols=".$metadata->{ncols}.", expected ".$self->{ncols}.", skipping.\n";
-		return;
-	}
-	if( defined $self->{nrows} && $metadata->{nrows} != $self->{nrows} )
-	{
-#		print "$filename had nrows=".$metadata->{nrows}.", expected ".$self->{nrows}.", skipping.\n";
-		return;
-	}
-	if( defined $self->{cellsize} && $metadata->{cellsize} != $self->{cellsize} )
-	{
-#		print "$filename had cellsize=".$metadata->{cellsize}.", expected ".$self->{cellsize}.", skipping.\n";
-		return;
-	}
-	$self->{files}->{$model}->{$metadata->{yllcorner}}->{$metadata->{xllcorner}} = $filename;
-
-
 
 	if( defined $self->{ncols} && $metadata->{ncols} != $self->{ncols} )
 	{
@@ -391,37 +357,65 @@ sub cell_elevation
 	my $file_n = POSIX::floor( $cell_n / $self->{filesize_n} )*$self->{filesize_n};
 
 	my $fn = $self->{files}->{$model}->{ $file_n }->{ $file_e };
-print "$cell_e,$cell_n -- $file_e,$file_n -- ".($fn?$fn:"NO FILE")."\n";
+
 	if( !defined $fn ) 
 	{
 		# attempt to download lidar
 		# print "no elevation for $file_e,$file_n\n"; 
 		$self->download( $model, $file_e, $file_n );
 		$fn = $self->{files}->{$model}->{ $file_n }->{ $file_e };
-		if( !defined $fn ) 
-		{
-			# give up 
-			return;
-		}
+	}
+	if( !defined $fn ) 
+	{
+		print "DANG!!!! - gave up\n";
+		# give up 
+		return;
 	}
 	if( ! $self->{loaded}->{$fn} )
 	{
-		print "LOADING LIDAR: $fn\n";
-		my $meta = $self->{meta}->{$model}->{ $file_n }->{ $file_e };
-use Imager;
-my $image = Imager->new;
-$image->read(file => $fn )
-  or die $image->errstr;
-		exit;
-#	for(my $i=0; $i<$self->{filesize_n}; ++$i ) {
-	#	}
-	print Dumper( $meta );
-	exit;
+		$self->load_file( $fn, $model, $file_n, $file_e );
+	}
+	return $self->{cells}->{$model}->{$cell_n}->{$cell_e};
+}
 
-		$self->{loaded}->{$fn} = 1;
+sub load_file {
+	my( $self, $fn, $model, $file_n, $file_e ) = @_;
+	print "LOADING LIDAR: $fn\n";
+
+	open( my $hfh, "<", $fn ) || die "can't read $fn";
+	my @lines = <$hfh>;
+	close $hfh;
+	my $lidar = {};
+	for( my $i=0; $i<6; ++$i )
+	{
+		my $line = $lines[$i];
+		$line =~ s/[\n\r]//g;
+		if( $line =~ m/^([^\s]+)\s+(.*)$/ )
+		{
+			$lidar->{uc $1} = $2;
+		}
+		else
+		{
+			die "Bad line in .asc file: $line";
+		}
 	}
 
-	return $self->{cells}->{$model}->{$cell_n}->{$cell_e};
+	for( my $i=6; $i<scalar(@lines); ++$i )
+	{
+		if( $i%1000==6) { print "{$i}"; }
+		my $line = $lines[$i];
+		$line =~ s/\n//g;
+		$line =~ s/\r//g;
+		$line =~ s/\s*$//g;
+		$line =~ s/^\s*//g;
+		my @row = split( / /, $line );
+		CELL: for( my $j=0; $j<scalar(@row); $j++ )
+		{
+			$self->{cells}->{$model}->{ $file_n + ($lidar->{NROWS}-1-($i-6))*$self->{cellsize} }->{ $file_e + $j*$self->{cellsize} } = $row[$j];
+		}
+	}
+	print "LOADED\n";
+	$self->{loaded}->{$fn} = 1;
 }
 
 
