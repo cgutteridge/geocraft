@@ -11,7 +11,10 @@ use Minecraft::World;
 use Minecraft::BlockTypes;
 use Minecraft::BlockConfig;
 use Minecraft::MapTiles;
+use Minecraft::VectorMap;
 use Minecraft::Projection;
+use Minecraft::VectorMap::Polygon;
+use Minecraft::VectorMap::Line;
 
 sub new
 {

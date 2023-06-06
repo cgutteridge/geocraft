@@ -310,24 +310,28 @@ sub elevation {
 
 sub continue {
 	my( $self ) = @_;
-	# load config
 
 	# set autoflush to show every dot as it appears.
 	my $old_fh = select(STDOUT);
 	$| = 1;
 	select($old_fh); 
 
-	$self->{maptiles} = new Minecraft::MapTiles(
-		zoom=>$self->{opts}->{MAP_ZOOM},
-		spread=>3,
-		width=>256,
-		height=>256,
-		dir=>"$FindBin::Bin/var/tiles", 
-		url=>"http://b.tile.openstreetmap.org/",
-		default_block=>"DEFAULT",
-		colours_file=>$self->{opts}->{COLOURS_FILE},
-	);
-
+	if( 0 ) {
+		$self->{maptiles} = new Minecraft::MapTiles(
+			zoom=>$self->{opts}->{MAP_ZOOM},
+			spread=>3,
+			width=>256,
+			height=>256,
+			dir=>"$FindBin::Bin/var/tiles", 
+			url=>"http://b.tile.openstreetmap.org/",
+			default_block=>"DEFAULT",
+			colours_file=>$self->{opts}->{COLOURS_FILE},
+		);
+	} else {
+		
+		$self->{maptiles} = new Minecraft::VectorMap();
+	}
+	
 
 	Minecraft::Config::load_config( $self->{opts}->{BLOCKS_FILE} );
 	 
@@ -384,7 +388,8 @@ sub continue {
 			print Dumper( $self->{opts}->{REGIONS} );
 			die "Failed to load $region_id";
 		}
-
+		$self->{maptiles}->init_region( $region_info->{x}+$self->{opts}->{OFFSET_E}, $region_info->{z}+$self->{opts}->{OFFSET_N}, $SQUARE_SIZE, $self );
+			
 		my $start_t = time();
 		print "Doing: #".($todo_at_start_count-scalar @todo)." of $todo_at_start_count areas of ${SQUARE_SIZE}x${SQUARE_SIZE} at ".$region_info->{x}.",".$region_info->{z}."\n";
 		for( my $z=$region_info->{z}; $z<$region_info->{z}+$SQUARE_SIZE; ++$z ) {
@@ -425,6 +430,7 @@ CHURCH=>98,
 BUILDING=>45,
 WATER=>9,
 ROAD=>159.07,
+PAVEMENT=>159.07,
 ALLOTMENT=>3.01,
 SAND=>12,
 CARPARK=>159.08,
