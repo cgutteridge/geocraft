@@ -18,79 +18,206 @@ sub new
 }
 
 sub init_region {
-	my( $self, $x, $z, $size, $projection ) = @_;
+	my( $self, $region_x, $region_z, $size, $projection ) = @_;
 
-	my $edge = 100;
-
-	my $x1 = $x-$edge;
-	my $x2 = $x+$size+$edge-1;
-	my $z1 = $z-$edge;
-	my $z2 = $z+$size+$edge-1;
+	print "INIT VECTOR REGION\n";
 
 	$self->{projection} = $projection;
 
+	my $edge = 3;
+	$self->{x} = $region_x;
+	$self->{z} = $region_z;
+	$self->{min_x} = $region_x-$edge;
+	$self->{max_x} = $region_x+($size-1)+$edge;
+	$self->{min_z} = $region_z-($size-1)-$edge;
+	$self->{max_z} = $region_z+$edge;
+	print sprintf( "Region bounds %d,%d to %d,%d\n", $self->{min_x},$self->{min_z}, $self->{max_x},$self->{max_z});
+
+	# Get the lat,long bounding box for OSM. Needs to be big enough to capture 
+	# things with long lines
+	my $grace = 1000;
+	my $x1 = $self->{min_x}-$grace;
+	my $x2 = $self->{max_x}+$grace;
+	my $z1 = $self->{min_z}-$grace;
+	my $z2 = $self->{max_z}+$grace;
 	my( $lat1,$long1 ) = $projection->grid_to_ll( $x1,$z1 );
 	my( $lat2,$long2 ) = $projection->grid_to_ll( $x2,$z2 );
 
+	
+	# reset the map
 	$self->{map} = {};
-	my $roads = $self->get_roads($lat1,$long1,$lat2,$long2 );	
 
+
+	{
+	my $ways = $self->get_ways("leisure",$lat1,$long1,$lat2,$long2 );	
+	foreach my $way ( values %$ways ) {
+		# only do ways with a bounding box
+		next if( $way->{nodes}->[0]->[0] != $way->{nodes}->[-1]->[0] );
+		next if( $way->{nodes}->[0]->[1] != $way->{nodes}->[-1]->[1] );
+		# only do parks pitches and gardens
+		next if( $way->{tags}->{leisure} !~ m/^(park|pitch|garden|dog_park|)$/ );
+		my $points = [];
+		foreach my $node (@{$way->{nodes}}) {
+			push @$points, [$projection->ll_to_grid(@$node)];
+		}
+		my $polygon = Minecraft::VectorMap::Polygon->new( [ $points ] );
+		$self->add_poly( "GRASS", $polygon );
+		#$polygon->debug;
+	}
+}
+
+
+	{	
+	my $ways = $self->get_ways("landuse",$lat1,$long1,$lat2,$long2 );	
+	foreach my $way ( values %$ways ) {
+		# only do ways with a bounding box
+		next if( $way->{nodes}->[0]->[0] != $way->{nodes}->[-1]->[0] );
+		next if( $way->{nodes}->[0]->[1] != $way->{nodes}->[-1]->[1] );
+		my $code = "WATER";
+		if( $way->{tags}->{landuse} =~ m/^(brownfield|construction|allotments|farmland|farmyard|flowerbed)$/ ) {
+	       		$code = "ALLOTMENT";
+		} elsif( $way->{tags}->{landuse} =~ m/^(grass|greenfield|recreation_ground|village_green|cemetery|forest|meadow|orchard|plant_nursery|vineyard)$/ ) {
+	       		$code = "GRASS";
+		} elsif( $way->{tags}->{landuse} =~ m/^(basin|salt_pond)$/ ) {
+	       		$code = "WATER";
+		} elsif( defined $way->{tags}->{landuse} ) {
+			next;
+		}
+
+		my $points = [];
+		foreach my $node (@{$way->{nodes}}) {
+			push @$points, [$projection->ll_to_grid(@$node)];
+		}
+		my $polygon = Minecraft::VectorMap::Polygon->new( [ $points ] );
+		$self->add_poly( $code, $polygon );
+	}
+}
+
+
+
+	my $roads = $self->get_ways("highway",$lat1,$long1,$lat2,$long2 );	
+
+	# PAVEMENT
 	foreach my $road ( values %$roads ) {
+		next if( $road->{tags}->{highway} =~ m/^(driveway|track|raceway|footway|bridleway|steps|corridor|path|via_ferrata|cycleway|proposed|construction|elevator|platform|services)$/ );
 		my $width = 6;
 		my @from = $projection->ll_to_grid(@{$road->{nodes}->[0]});
 		for( my $i=1;$i<scalar @{$road->{nodes}}; $i++ ) {
 			my @to = $projection->ll_to_grid(@{$road->{nodes}->[$i]});
 			my $polygon = $self->extrude( \@from, \@to, $width, $width );
-			#$self->add_poly( "PAVEMENT", $polygon );
-			$self->add_circle( "WATER", \@from, 6 );
+			$self->add_poly( "PAVEMENT", $polygon );
+			$self->add_circle( "PAVEMENT", \@from, $width );
 			@from = @to;	
 		}
 	}
-	if(0){
 	foreach my $road ( values %$roads ) {
 		my $width = 4;
+		my $code = "ROAD";
+		next if( $road->{tags}->{highway} =~ m/^(via_ferrata|proposed|construction|services|elevator)$/ );
+		if( $road->{tags}->{highway} =~ m/^(track|bridleway)$/ ) {
+			$width = 3;
+			$code = "TRACK";
+		}
+		if( $road->{tags}->{highway} =~ m/^(footway|steps|corridor|path)$/ ){
+			$width = 2;
+			$code = "PATH";
+		}
+		if( $road->{tags}->{highway} =~ m/^(raceway)$/ ){
+			$width = 6;
+			$code = "FANCYROAD";
+		}
+		if( $road->{tags}->{highway} =~ m/^(cycleway)$/ ){
+			$width = 2;
+			$code = "FANCYROAD";
+		}
 		my @from = $projection->ll_to_grid(@{$road->{nodes}->[0]});
 		for( my $i=1;$i<scalar @{$road->{nodes}}; $i++ ) {
 			my @to = $projection->ll_to_grid(@{$road->{nodes}->[$i]});
 			my $polygon = $self->extrude( \@from, \@to, $width, $width );
-			#$self->add_poly( "ROAD", $polygon );
+			$self->add_poly( $code, $polygon );
+			$self->add_circle( $code, \@from, $width );
 			@from = @to;	
 		}
 	}
-	}}
+
+	if( 0 ) {
+		# put a debug border around each region
+		my $region_x2 = $region_x + $size -1;
+		my $region_z2 = $region_z - ($size -1);
+		for( my $x=$region_x; $x<$region_x2; ++$x ) {
+			$self->set($x,$region_z, "WATER");
+			$self->set($x,$region_z2,"WATER");
+		}
+		for( my $z=$region_z; $z>$region_z2; --$z ) {
+			$self->set($region_x, $z,"ROAD");
+			$self->set($region_x2,$z,"FANCYROAD");
+		}
+	}
+	
 }
-			
+
+# priority of blocks
+my $SCORE = {
+	FANCYROAD=>100,
+	ROAD=>90,
+	WATER=>80, # bridges go over water, but tracks don't?
+	TRACK=>50,
+	PAVEMENT=>30,
+	PATH=>20,
+	GRASS=>10,
+	ALLOTMENT=>5,
+	DEFAULT=>0,
+};
+
+sub set {
+	my( $self,$x,$z,$code ) = @_;
+
+	if( $SCORE->{ $self->block_at_grid($x,$z) } <= $SCORE->{$code} ) {
+		$self->{map}->{$z}->{$x} = $code;
+	}
+}
 			
 sub extrude {
 	my( $self, $from, $to, $left_width, $right_width ) = @_;
 
 	my $xdelta = $to->[0]-$from->[0];
 	my $zdelta = $to->[1]-$from->[1];
-	my $angle = atan($xdelta/-$zdelta);
+	my $angle = atan($xdelta/$zdelta);
 	# rotate by 90 to the left
 	my $left_angle = $angle-(pi/2);
-	my $left_to_x = $to->[0]+sin($left_angle)*$left_width/2;
-	my $left_to_z = $to->[1]+cos($left_angle)*$left_width/2;
-	my $left_from_x = $from->[0]+sin($left_angle)*$left_width/2;
-	my $left_from_z = $from->[1]+cos($left_angle)*$left_width/2;
+	my $left_to_x = $to->[0]+sin($left_angle)*$left_width;
+	my $left_to_z = $to->[1]+cos($left_angle)*$left_width;
+	my $left_from_x = $from->[0]+sin($left_angle)*$left_width;
+	my $left_from_z = $from->[1]+cos($left_angle)*$left_width;
 	my $right_angle = $angle+(pi/2);
-	my $right_to_x = $to->[0]+sin($right_angle)*$right_width/2;
-	my $right_to_z = $to->[1]+cos($right_angle)*$right_width/2;
-	my $right_from_x = $from->[0]+sin($right_angle)*$right_width/2;
-	my $right_from_z = $from->[1]+cos($right_angle)*$right_width/2;
+	my $right_to_x = $to->[0]+sin($right_angle)*$right_width;
+	my $right_to_z = $to->[1]+cos($right_angle)*$right_width;
+	my $right_from_x = $from->[0]+sin($right_angle)*$right_width;
+	my $right_from_z = $from->[1]+cos($right_angle)*$right_width;
 
 	return Minecraft::VectorMap::Polygon->new( [[
-					[$left_from_x,$left_from_z],
-					[$left_to_x,$left_to_z],
-					[$right_to_x,$right_to_z],
+					[$left_from_x, $left_from_z],
+					[$left_to_x,   $left_to_z],
+					[$right_to_x,  $right_to_z],
 					[$right_from_x,$right_from_z]]]);
 }
 sub block_at {
 	my( $self, $lat,$long ) = @_;
 
 	my @cc = $self->{projection}->ll_to_grid($lat,$long);
-	if( $self->{map}->{int $cc[1]}->{int $cc[0]} ) {
-		return $self->{map}->{int $cc[1]}->{int $cc[0]};
+
+	return $self->block_at_grid( int $cc[0], int $cc[1] );
+}
+
+# expects ints
+sub block_at_grid {
+	my( $self, $x,$z ) = @_;
+	# test scope as we can't answer questions out of scope correctly
+	
+	if( $x<$self->{min_x} || $x>$self->{max_x} ) { print "Out of scope: x=".$x."\n"; die; }
+	if( $z<$self->{min_z} || $z>$self->{max_z} ) { print "Out of scope: z=".$z."\n";  die;}
+	if( $self->{map}->{$z}->{$x} ) {
+		return $self->{map}->{$z}->{$x};
 	}
 	return "DEFAULT";
 }
@@ -98,9 +225,16 @@ sub block_at {
 sub add_circle {
 	my( $self, $code, $centre, $radius ) = @_;
 
-	
-
-
+	for(my $z_off = -$radius; $z_off<=$radius;$z_off++ ) {
+		my $z = int $centre->[1]+$z_off;
+		next if $z < $self->{min_z};
+		next if $z > $self->{max_z};
+		my $width = sqrt( $radius*$radius - $z_off*$z_off );
+		for( my $x_off=0; $x_off<$width; $x_off++ ) {
+			$self->{map}->{$z}->{int $centre->[0]-$x_off} = $code;
+			$self->{map}->{$z}->{int $centre->[0]+$x_off} = $code;
+		}
+	}
 }
 
 sub add_poly {
@@ -108,14 +242,19 @@ sub add_poly {
 
 	#$poly->debug;
 	for( my $z=int $poly->{min_z}; $z<=$poly->{max_z}; $z++ ) {
+		next if $z < $self->{min_z};
+		next if $z > $self->{max_z};
+
 		my $toggles = {};
 		# our raster line is $z+0.5
 		my $raster_z = $z+0.5;
 		# let's see which lines it intersects with and if so where.
 		my @x_intersect_points = ();
 		foreach my $line ( @{$poly->{lines}} ) {
+			# line is entirely above or below this raster line?
 			next if( $line->{from}->[1] > $raster_z && $line->{to}->[1] > $raster_z );
 			next if( $line->{from}->[1] < $raster_z && $line->{to}->[1] < $raster_z );
+
 			my($a,$b);
 			# a will be the west most of the two points
 			if( $line->{from}->[0] < $line->{to}->[0] ) {
@@ -142,27 +281,21 @@ sub add_poly {
 				$draw = !$draw;
 				$draw_cell = 1;
 			}
-			if( $draw_cell ) {
+			if( $draw_cell && $x >= $self->{min_x} && $x<=$self->{max_x}) {
 				$self->{map}->{$z}->{$x} = $code;
-				#				print "#";
-			}
-			else {
-				#print "_";
 			}
 		}
-		#print "\n";
 	}
-	#print "\n";
 }
 
 
-sub get_roads {
-	my( $self,$lat1,$long1,$lat2,$long2 ) = @_;
+sub get_ways {
+	my( $self,$type,$lat1,$long1,$lat2,$long2 ) = @_;
 
 	my $query = "
 [out:json][timeout:25];
 (
-  way[\"highway\"]($lat1,$long1,$lat2,$long2);
+  way[\"$type\"]($lat1,$long1,$lat2,$long2);
 );
 (._;>;);
 out body;

@@ -57,6 +57,7 @@ sub write_status {
   	close $fh;
 }
 
+# returns absolute grid position, not minecraft position
 sub ll_to_grid
 {
 	my( $self, $lat, $long ) = @_;
@@ -388,10 +389,16 @@ sub continue {
 			print Dumper( $self->{opts}->{REGIONS} );
 			die "Failed to load $region_id";
 		}
-		$self->{maptiles}->init_region( $region_info->{x}+$self->{opts}->{OFFSET_E}, $region_info->{z}+$self->{opts}->{OFFSET_N}, $SQUARE_SIZE, $self );
+		$self->{maptiles}->init_region( 
+			$region_info->{x}+$self->{opts}->{OFFSET_E},
+			-$region_info->{z}+$self->{opts}->{OFFSET_N},
+			$SQUARE_SIZE,
+			$self );
 			
 		my $start_t = time();
 		print "Doing: #".($todo_at_start_count-scalar @todo)." of $todo_at_start_count areas of ${SQUARE_SIZE}x${SQUARE_SIZE} at ".$region_info->{x}.",".$region_info->{z}."\n";
+
+		# Main loop over the region
 		for( my $z=$region_info->{z}; $z<$region_info->{z}+$SQUARE_SIZE; ++$z ) {
 			next if( $z>$self->{opts}->{NORTH} || $z<$self->{opts}->{SOUTH} );
 			for( my $x=$region_info->{x}; $x<$region_info->{x}+$SQUARE_SIZE; ++$x ) {
@@ -430,6 +437,9 @@ CHURCH=>98,
 BUILDING=>45,
 WATER=>9,
 ROAD=>159.07,
+PATH=>1.01,
+FANCYROAD=>251.15,
+TRACK=>3.01,
 PAVEMENT=>159.07,
 ALLOTMENT=>3.01,
 SAND=>12,
