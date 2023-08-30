@@ -32,6 +32,21 @@ sub chunk_xz
 	return( $cx, $cz );
 }
 
+# return sections in a chunk as a hash indexed on the Y offset of the section
+sub chunk_sections
+{
+	my( $self, $chunk_x, $chunk_z ) = @_;
+
+	my $chunk = $self->{$chunk_z}->{$chunk_x}->{chunk};
+	return undef if( !defined $chunk );
+
+	my $sections = {};
+       	foreach my $section ( @{$chunk->{sections}->{_value}} ) {
+		$sections->{$section->{Y}->{_value}} = bless $section, "Minecraft::Section";
+	}
+	return $sections;
+}
+
 
 sub block_section
 {
@@ -45,6 +60,11 @@ sub block_section
 	return undef if( !defined $chunk );
 
 	my $sections = $chunk->{Level}->{Sections};
+
+	# new format files
+	if( !defined $sections ) {
+		$sections = $chunk->{sections};
+	}
 	my $section = $sections->{_value}->[$section_y];
 	return $section;
 }

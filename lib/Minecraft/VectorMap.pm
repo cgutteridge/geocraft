@@ -35,7 +35,7 @@ sub init_region {
 
 	# Get the lat,long bounding box for OSM. Needs to be big enough to capture 
 	# things with long lines
-	my $grace = 1000;
+	my $grace = 200;
 	my $x1 = $self->{min_x}-$grace;
 	my $x2 = $self->{max_x}+$grace;
 	my $z1 = $self->{min_z}-$grace;
@@ -47,42 +47,87 @@ sub init_region {
 	# reset the map
 	$self->{map} = {};
 
-
-	{
-	my $ways = $self->get_ways("leisure",$lat1,$long1,$lat2,$long2 );	
+	my $ways = $self->get_ways(<<END);
+(
+  way["leisure"]($lat1,$long1,$lat2,$long2);
+  way["building"]($lat1,$long1,$lat2,$long2);
+  way["landuse"]($lat1,$long1,$lat2,$long2);
+  way["water"]($lat1,$long1,$lat2,$long2);
+);
+END
 	foreach my $way ( values %$ways ) {
 		# only do ways with a bounding box
 		next if( $way->{nodes}->[0]->[0] != $way->{nodes}->[-1]->[0] );
 		next if( $way->{nodes}->[0]->[1] != $way->{nodes}->[-1]->[1] );
-		# only do parks pitches and gardens
-		next if( $way->{tags}->{leisure} !~ m/^(park|pitch|garden|dog_park|)$/ );
-		my $points = [];
-		foreach my $node (@{$way->{nodes}}) {
-			push @$points, [$projection->ll_to_grid(@$node)];
+		my $code;
+		if( defined $way->{tags}->{landuse} ) {
+			if( $way->{tags}->{landuse} =~ m/^(brownfield|construction|allotments|farmland|farmyard|flowerbed)$/ ) {
+	       			$code = "ALLOTMENT";
+			} elsif( $way->{tags}->{landuse} =~ m/^(grass|greenfield|recreation_ground|village_green|cemetery|forest|meadow|orchard|plant_nursery|vineyard)$/ ) {
+	       			$code = "GRASS";
+			} elsif( $way->{tags}->{landuse} =~ m/^(basin|salt_pond)$/ ) {
+	       			$code = "WATER";
+			}
 		}
-		my $polygon = Minecraft::VectorMap::Polygon->new( [ $points ] );
-		$self->add_poly( "GRASS", $polygon );
-		#$polygon->debug;
-	}
-}
-
-
-	{	
-	my $ways = $self->get_ways("landuse",$lat1,$long1,$lat2,$long2 );	
-	foreach my $way ( values %$ways ) {
-		# only do ways with a bounding box
-		next if( $way->{nodes}->[0]->[0] != $way->{nodes}->[-1]->[0] );
-		next if( $way->{nodes}->[0]->[1] != $way->{nodes}->[-1]->[1] );
-		my $code = "WATER";
-		if( $way->{tags}->{landuse} =~ m/^(brownfield|construction|allotments|farmland|farmyard|flowerbed)$/ ) {
-	       		$code = "ALLOTMENT";
-		} elsif( $way->{tags}->{landuse} =~ m/^(grass|greenfield|recreation_ground|village_green|cemetery|forest|meadow|orchard|plant_nursery|vineyard)$/ ) {
-	       		$code = "GRASS";
-		} elsif( $way->{tags}->{landuse} =~ m/^(basin|salt_pond)$/ ) {
-	       		$code = "WATER";
-		} elsif( defined $way->{tags}->{landuse} ) {
-			next;
+		if( defined $way->{tags}->{leisure} ) {
+			if( $way->{tags}->{leisure} =~ m/^(park|pitch|garden|dog_park|common)$/ ) {
+				$code = "GRASS";
+			}
+			if( $way->{tags}->{leisure} =~ m/^(playground)$/ ) {
+				$code = "FANCYROAD";
+			}
 		}
+# Unhandled building tags
+# building: hotel, kindergarten, kiosk, no, office, part, public, residential, roof, school, service, substation, terrace, toilets, train_station, transportation, viaduct,
+# building:colour: maroon
+# building:material: brick, plaster, 
+		if( defined $way->{tags}->{building} ) {
+			$code = "BUILDING";
+			if( $way->{tags}->{building} =~ m/^(church)$/ ) {
+				$code = "CHURCH";
+			}
+			if( $way->{tags}->{building} =~ m/^(retail|pub)$/ ) {
+				$code = "RETAIL";
+			}
+			if( $way->{tags}->{building} =~ m/^(portakabin)$/ ) {
+				$code = "BUILDING_WHITE";
+			}
+			if( $way->{tags}->{building} =~ m/^(shed)$/ ) {
+				$code = "SHED";
+			}
+			if( $way->{tags}->{building} =~ m/^(industrial)$/ ) {
+				$code = "INDUSTRIAL";
+			}
+		}
+		if( defined $way->{tags}->{"building:material"} ) {
+			if( $way->{tags}->{"building:material"} =~ m/^(stone)$/ ) {
+				$code = "CHURCH";
+			}
+			if( $way->{tags}->{"building:material"} =~ m/^(stone)$/ ) {
+				$code = "BUILDING_SANDSTONE";
+			}
+		}
+		if( defined $way->{tags}->{"building:colour"} ) {
+			if( $way->{tags}->{"building:colour"} =~ m/^(black)$/ ) {
+				$code = "BUILDING_BLACK";
+			}
+			if( $way->{tags}->{"building:colour"} =~ m/^(brown|light_brown)$/ ) {
+				$code = "BUILDING_BROWN";
+			}
+			if( $way->{tags}->{"building:colour"} =~ m/^(grey)$/ ) {
+				$code = "BUILDING_GREY";
+			}
+			if( $way->{tags}->{"building:colour"} =~ m/^(white)$/ ) {
+				$code = "BUILDING_WHITE";
+			}
+			if( $way->{tags}->{"building:colour"} =~ m/^(black)$/ ) {
+				$code = "BUILDING_BLACK";
+			}
+		}
+		if( defined $way->{tags}->{water} ) {
+			$code = "WATER";
+		}
+		next unless defined $code;
 
 		my $points = [];
 		foreach my $node (@{$way->{nodes}}) {
@@ -91,12 +136,13 @@ sub init_region {
 		my $polygon = Minecraft::VectorMap::Polygon->new( [ $points ] );
 		$self->add_poly( $code, $polygon );
 	}
-}
 
 
-
-	my $roads = $self->get_ways("highway",$lat1,$long1,$lat2,$long2 );	
-
+	my $roads = $self->get_ways(<<END);
+(
+  way["highway"]($lat1,$long1,$lat2,$long2);
+);
+END
 	# PAVEMENT
 	foreach my $road ( values %$roads ) {
 		next if( $road->{tags}->{highway} =~ m/^(driveway|track|raceway|footway|bridleway|steps|corridor|path|via_ferrata|cycleway|proposed|construction|elevator|platform|services)$/ );
@@ -158,6 +204,16 @@ sub init_region {
 
 # priority of blocks
 my $SCORE = {
+	RETAIL=>220,
+	CHURCH=>210,
+	BUILDING_WHITE=>201,
+	BUILDING_BLACK=>201,
+	BUILDING_BROWN=>201,
+	BUILDING_GREY=>201,
+	BUILDING_SANDSTONE=>201,
+	BUILDING=>200,
+	INDUSTRIAL=>200,
+	SHED=>150,
 	FANCYROAD=>100,
 	ROAD=>90,
 	WATER=>80, # bridges go over water, but tracks don't?
@@ -172,8 +228,12 @@ my $SCORE = {
 sub set {
 	my( $self,$x,$z,$code ) = @_;
 
-	if( $SCORE->{ $self->block_at_grid($x,$z) } <= $SCORE->{$code} ) {
+	my $current = $self->block_at_grid($x,$z);
+	if( $SCORE->{current} <= $SCORE->{$code} ) {
 		$self->{map}->{$z}->{$x} = $code;
+	}
+	else {
+		print "won't overwrite $current with $code\n";
 	}
 }
 			
@@ -182,6 +242,7 @@ sub extrude {
 
 	my $xdelta = $to->[0]-$from->[0];
 	my $zdelta = $to->[1]-$from->[1];
+	if( $zdelta == 0 ) { $zdelta = 0.000001; }
 	my $angle = atan($xdelta/$zdelta);
 	# rotate by 90 to the left
 	my $left_angle = $angle-(pi/2);
@@ -265,6 +326,7 @@ sub add_poly {
 			# distance from point a to the raster line
 			my $a_vdist_to_line = $raster_z - $a->[1];
 			my $a_vdist_to_b = $b->[1] - $a->[1];
+			if( $a_vdist_to_b == 0 ) { $a_vdist_to_b = 0.0000001; }
 			my $ratio_to_line = $a_vdist_to_line / $a_vdist_to_b;
 			my $a_hdist_to_b = $b->[0] - $a->[0];
 			my $intersect_x = int($a->[0] + $a_hdist_to_b * $ratio_to_line);
@@ -290,13 +352,11 @@ sub add_poly {
 
 
 sub get_ways {
-	my( $self,$type,$lat1,$long1,$lat2,$long2 ) = @_;
+	my( $self,$search ) = @_;
 
 	my $query = "
 [out:json][timeout:25];
-(
-  way[\"$type\"]($lat1,$long1,$lat2,$long2);
-);
+$search
 (._;>;);
 out body;
 ";
