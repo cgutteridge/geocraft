@@ -277,6 +277,35 @@ sub add_sign
 	print "[ADDED SIGN ".join( "/", @lines )."]";
 }
 
+sub add_beacon 
+{
+	my( $self,   $rel_x,$y,$rel_z, $x,$z, $text ) = @_;
+
+	$self->set_block( $rel_x,$y,$rel_z,  138 );
+	my $data = bless {
+		x => (bless { _name=>"x", _value=>$x }, 'Minecraft::NBT::Int'),
+		y => (bless { _name=>"y", _value=>$y }, 'Minecraft::NBT::Int'),
+		z => (bless { _name=>"z", _value=>$z }, 'Minecraft::NBT::Int'),
+		id => (bless { _name=>"id", _value=> "minecraft:beacon" }, 'Minecraft::NBT::String'),
+		Levels => (bless { _name=>"Primary", _value=>1 }, 'Minecraft::NBT::Int'),
+		Primary => (bless { _name=>"Primary", _value=>-1 }, 'Minecraft::NBT::Int'),
+		Secondary => (bless { _name=>"Secondary", _value=>-1 }, 'Minecraft::NBT::Int'),
+	}, "Minecraft::NBT::Compound";
+
+
+	# doing set_block above should force the chunk to exist
+	my( $chunk_x, $chunk_z ) = $self->chunk_xz($rel_x,$rel_z);
+	my $chunk = $self->{$chunk_z}->{$chunk_x}->{chunk};
+	
+	$chunk->{Level}->{TileEntities}->{_type} = 10; # for the ones that got messed up
+	push @{ $chunk->{Level}->{TileEntities}->{_value} }, $data;
+
+
+
+
+	print "[ADDED BEACON]";
+}
+
 sub set_block
 {
 	my( $self,   $rel_x,$y,$rel_z, $type ) = @_;

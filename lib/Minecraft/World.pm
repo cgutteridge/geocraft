@@ -66,6 +66,12 @@ sub add_sign
 
 	return $self->block_region( $x,$y,$z )->add_sign( c($x,$y,$z), $x,$z, $label );
 }
+sub add_beacon
+{
+	my( $self,   $x,$y,$z, $label, $colour ) = @_;
+
+	return $self->block_region( $x,$y,$z )->add_beacon( c($x,$y,$z), $x,$z, $label, $colour );
+}
 sub set_light
 {
 	my( $self,   $x,$y,$z, $level ) = @_;

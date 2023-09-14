@@ -127,16 +127,16 @@ sub grid_to_ll
 
 sub add_point_ll
 {
-	my( $self, $lat,$long, $label ) = @_;
+	my( $self, $lat,$long, $label, $beam_colour ) = @_;
 
 	my( $e, $n ) = $self->ll_to_grid( $lat,$long );
 
-	$self->add_point_en( $e, $n, $label );
+	$self->add_point_en( $e, $n, $label, $beam_colour );
 }
 
 sub add_point_en 
 {
-	my( $self, $e,$n, $label ) = @_;
+	my( $self, $e,$n, $label, $beam_colour ) = @_;
 
 	my $actual_x = $e - $self->{opts}->{OFFSET_E};
 	my $actual_z = -$n + $self->{opts}->{OFFSET_N};
@@ -147,12 +147,12 @@ sub add_point_en
 #		$transformed_z = $transformed_z / $opts{SCALE};
 #	}
 
-	$self->add_point( $actual_x,$actual_z, $label );
+	$self->add_point( $actual_x,$actual_z, $label, $beam_colour );
 }
 
 sub add_point
 {
-	my( $self, $x,$z, $label ) = @_;
+	my( $self, $x,$z, $label, $beam_colour ) = @_;
 
 	$x = int $x;
 	$z = int $z; 
@@ -160,7 +160,21 @@ sub add_point
 	if( !defined $self->{opts}->{POINTS}->{$z}->{$x} ) {
 		$self->{opts}->{POINTS}->{$z}->{$x} = [];
 	}
-	push @{$self->{opts}->{POINTS}->{$z}->{$x}}, { label=>$label, status=>"todo" };
+	push @{$self->{opts}->{POINTS}->{$z}->{$x}}, { type=>"sign", label=>$label, status=>"todo" };
+	if( defined $beam_colour ) {
+		# add a beacon too if beam_colour is set. Make the beam one to the north
+		push @{$self->{opts}->{POINTS}->{$z-2}->{$x-1}}, { type=>"beacon-base", status=>"todo" };
+		push @{$self->{opts}->{POINTS}->{$z-2}->{$x  }}, { type=>"beacon-base", status=>"todo" };
+		push @{$self->{opts}->{POINTS}->{$z-2}->{$x+1}}, { type=>"beacon-base", status=>"todo" };
+		push @{$self->{opts}->{POINTS}->{$z-1}->{$x-1}}, { type=>"beacon-base", status=>"todo" };
+		push @{$self->{opts}->{POINTS}->{$z-1}->{$x  }}, { type=>"beacon", beam_colour=>$beam_colour, status=>"todo" };
+		push @{$self->{opts}->{POINTS}->{$z-1}->{$x+1}}, { type=>"beacon-base", status=>"todo" };
+		push @{$self->{opts}->{POINTS}->{$z  }->{$x-1}}, { type=>"beacon-base", status=>"todo" };
+		push @{$self->{opts}->{POINTS}->{$z  }->{$x  }}, { type=>"beacon-base", status=>"todo" };
+		push @{$self->{opts}->{POINTS}->{$z  }->{$x+1}}, { type=>"beacon-base", status=>"todo" };
+	}
+
+	
 }
 		
 	
@@ -581,20 +595,46 @@ sub render_xz
 		$self->{world}->set_block( $x, $y, $z, $blocks->{$offset} );
 		$maxy=$y if( $y>$maxy );
 	}
+
+
 	if( defined $self->{opts}->{POINTS}->{$z} && defined $self->{opts}->{POINTS}->{$z}->{$x} ) {
-		
 		foreach my $point ( @{$self->{opts}->{POINTS}->{$z}->{$x}} ) {
 			if( $maxy+2< $self->{opts}->{TOP_OF_WORLD} ) {
-				my $stand_y = $maxy+1; 
-				my $sign_y = $maxy+2; 
-				$maxy+=2;
-				
-				$self->{world}->set_block( $x,$stand_y,$z, 5 ); # wood for it to stand on
-	
-				my $text = $point->{label};
-				$self->{world}->add_sign( $x,$sign_y,$z, $text );
+				if( $point->{type} eq "beacon" ) {
+					# 95.x
+					# turn non air blocks into glass
+					for( my $y = 1; $y<=$maxy; $y++ ) {
+						my $block = $self->{world}->get_block( $x, $y, $z );
+						if( $block != 0 ) {
+							$self->{world}->set_block( $x, $y, $z, "95.".$point->{beam_colour} );
+						}
+					}
+					# make a beacon
+					$self->{world}->add_beacon( $x, 2, $z );
+					$self->{world}->set_block( $x, 1, $z, 57 );
+				}
+				if( $point->{type} eq "beacon" || $point->{type} eq "beacon-base" ) {
+					$self->{world}->set_block( $x, 1, $z, 57 );
+				} 
+				if( $point->{type} eq "sign" ) {
+					# simple signpost
+					my $stand_y = $maxy; 
+					my $sign_y = $maxy+1; 
+					$maxy+=1;
+					# turn the top world block to wood UNLESS it's a signpost in which case the block above the signpost
+					if( $self->{world}->get_block( $x,$stand_y,$z ) eq "63" ) {
+						$stand_y++;
+						$sign_y++;
+						$maxy++;
+					}
+					
+					$self->{world}->set_block( $x,$stand_y,$z, 5 ); # wood for it to stand on
+		
+					my $text = $point->{label};
+					$self->{world}->add_sign( $x,$sign_y,$z, $text );
+				}
+
 				$point->{status} = "done";
-				$maxy+=2;
 			}
 		}
 	}
