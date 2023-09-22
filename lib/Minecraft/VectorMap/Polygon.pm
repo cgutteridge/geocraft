@@ -6,6 +6,7 @@ use Data::Dumper;
 use strict;
 use warnings;
 
+
 # ways is a list of polygons, each polygon is a list of nodes, assumed to be a loop
 sub new {
 	my( $class, $ways ) = @_;

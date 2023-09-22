@@ -9,6 +9,10 @@ use Getopt::Long;
 use WikiPoints;
 use StreetSigns;
 
+use Carp qw(confess cluck);
+$SIG{__WARN__} = 'cluck';
+$SIG{__DIE__} = 'confess';
+
 use strict;
 use warnings;
 

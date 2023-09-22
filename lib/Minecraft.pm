@@ -16,6 +16,7 @@ use Minecraft::VectorMap;
 use Minecraft::Projection;
 use Minecraft::VectorMap::Polygon;
 use Minecraft::VectorMap::Line;
+use Minecraft::VectorMap::Raster;
 
 sub new
 {

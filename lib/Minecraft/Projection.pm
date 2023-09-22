@@ -447,6 +447,10 @@ sub continue {
 my $TYPE_DEFAULT = {
 DEFAULT=>1,
 GRASS=>2,
+LAWN=>2,
+WETLAND=>2,
+HEATH=>2,
+WOOD=>2,
 CHURCH=>98,
 BUILDING=>45,
 WATER=>9,
@@ -484,7 +488,6 @@ sub render_xz
 	my $el = int $context->{elevation};
 	my $feature_height = int $context->{feature_height};
 
-
 	# we now have $block, $el, $SEA_LEVEL and $feature_height
 	# that's enough to work out what to place at this location
 
@@ -516,7 +519,6 @@ sub render_xz
 	# over_block: blocktype [ block ID or "DEFAULT" ]
 	# feature_filter - filter features of this height or less
 	# feature_min_height - force this min feature height even if lidar is lower
-
 	my $blocks = {};
 	my $default = $TYPE_DEFAULT->{$block};
 	if( !defined $default ) { confess "unknown block: $block"; }
