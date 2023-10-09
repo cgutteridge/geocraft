@@ -220,9 +220,9 @@ else {
 		$postcode = uc $postcode;
 		$postcode =~ s/\s//g;
 	
-		my( $e, $n ) = postcode_to_en($postcode);
-		$centre = "$e,$n";
-		$ll = 0;
+		my( $lat, $lon ) = postcode_to_ll($postcode);
+		$centre = "$lat,$lon";
+		$ll = 1;
 	}
 	
 	my( $e1,$e2,$n1,$n2 );
@@ -375,18 +375,17 @@ exit;
 
 
 use JSON::PP;
-sub postcode_to_en
+sub postcode_to_ll
 {
 	my( $postcode ) = @_;
 
-	my $url = "https://data.ordnancesurvey.co.uk/doc/postcodeunit/$postcode.json";
+	my $url = "https://nominatim.openstreetmap.org/search.php?q=$postcode&format=jsonv2";
 	print "Getting postcode: $url\n";
-	my $json = `curl -s $url`;
+	my $json = `curl -L -s "$url"`;
 	my $data = decode_json $json;
-	my $pdata = $data->{"http://data.ordnancesurvey.co.uk/id/postcodeunit/$postcode"};
-    	my $e = $pdata->{'http://data.ordnancesurvey.co.uk/ontology/spatialrelations/easting'}->[0]->{value}+0;
-    	my $n = $pdata->{'http://data.ordnancesurvey.co.uk/ontology/spatialrelations/northing'}->[0]->{value}+0;
-	return( $e,$n );
+	my $lat = $data->[0]->{"lat"};
+	my $lon = $data->[0]->{"lon"};
+	return( $lat,$lon );
 }
 
 
