@@ -7,11 +7,16 @@ use Minecraft::Context;
 use Minecraft::NBT;
 use Minecraft::NBT::Tag;
 use Minecraft::Region;
+use Minecraft::Section;
 use Minecraft::World;
 use Minecraft::BlockTypes;
 use Minecraft::BlockConfig;
 use Minecraft::MapTiles;
+use Minecraft::VectorMap;
 use Minecraft::Projection;
+use Minecraft::VectorMap::Polygon;
+use Minecraft::VectorMap::Line;
+use Minecraft::VectorMap::Raster;
 
 sub new
 {

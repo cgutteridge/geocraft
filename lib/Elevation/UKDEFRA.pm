@@ -118,7 +118,7 @@ sub download
 		my $submit_job = decode_json( $submit_job_response );
 		# we expect back: {"jobId":"jcc3fa88c8eba49db915cd7ff0c701774","jobStatus":"esriJobSubmitted"}
 		my $jobid = $submit_job->{jobId};
-		print "JOB:$jobid\n";
+		# print "JOB:$jobid\n";
 	
 		my $JOB_WAIT_MAX = 60;
 		my $JOB_WAIT_INTERVAL = 3; # lets not hammer it too hard
@@ -131,7 +131,7 @@ sub download
 			my $job_watch_url = "https://environment.data.gov.uk/arcgis/rest/services/gp/DataDownload/GPServer/DataDownload/jobs/$jobid?f=json"; #&dojo.preventCache=1550585729682
 			my $are_we_there_yet_response = $self->get_url( $job_watch_url );
 			my $are_we_there_yet = decode_json( $are_we_there_yet_response );
-			print "".$are_we_there_yet->{jobStatus}."\n";
+			# print "".$are_we_there_yet->{jobStatus}."\n";
 			$done=1 if( $are_we_there_yet->{jobStatus} eq "esriJobSucceeded" );
 		}
 	
@@ -200,7 +200,7 @@ sub download
 	if( scalar @{$self->{zips}->{$code}->{$model}} ) {
 		# while there's still some untried zips and we don't have the file we need
 		while( scalar @{$self->{zips}->{$code}->{$model}} && !$self->{files}->{$model}->{ $file_n }->{ $file_e } ) {
-			print "TRYING NEXT OPTION for $file_e/$file_n. ".scalar @{$self->{zips}->{$code}->{$model}}." remain.\n";
+			# print "TRYING NEXT OPTION for $file_e/$file_n. ".scalar @{$self->{zips}->{$code}->{$model}}." remain.\n";
 			my $zip_url = shift @{$self->{zips}->{$code}->{$model}};
 			$self->add_zip( $zip_url, $model );
 		}
@@ -244,11 +244,11 @@ sub add_file
 	$filename =~ s/\.tif$/.asc/;
 
 	if( !-e $filename ) {
-		print "Converting: $tif_filename to ASC using gdal_translate\n";
+		# print "Converting: $tif_filename to ASC using gdal_translate\n";
 		`$GDAL_TRANSLATE -of AAIGrid -ot Int32 $tif_filename $filename`;
 	}
 
-	print "Adding: $filename\n";
+	# print "Adding: $filename\n";
 
 	open( my $fh, "<", $filename ) 
 		|| die "can't read elevation file $filename: $!";
@@ -264,17 +264,17 @@ sub add_file
 
 	if( defined $self->{ncols} && $metadata->{ncols} != $self->{ncols} )
 	{
-		print "$filename had ncols=".$metadata->{ncols}.", expected ".$self->{ncols}.", skipping.\n";
+		# print "$filename had ncols=".$metadata->{ncols}.", expected ".$self->{ncols}.", skipping.\n";
 		return;
 	}
 	if( defined $self->{nrows} && $metadata->{nrows} != $self->{nrows} )
 	{
-		print "$filename had nrows=".$metadata->{nrows}.", expected ".$self->{nrows}.", skipping.\n";
+		# print "$filename had nrows=".$metadata->{nrows}.", expected ".$self->{nrows}.", skipping.\n";
 		return;
 	}
 	if( defined $self->{cellsize} && $metadata->{cellsize} != $self->{cellsize} )
 	{
-		print "$filename had cellsize=".$metadata->{cellsize}.", expected ".$self->{cellsize}.", skipping.\n";
+		# print "$filename had cellsize=".$metadata->{cellsize}.", expected ".$self->{cellsize}.", skipping.\n";
 		return;
 	}
 	$self->{files}->{$model}->{$metadata->{yllcorner}}->{$metadata->{xllcorner}} = $filename;
@@ -334,7 +334,7 @@ sub raw_en
 	if( !defined $SW || !defined $NW || !defined $SE || !defined $NE )
 	{
 		# print "no data $ce, $cn\n";
-		return 0;
+		return;
 	}	
 
 	my $h_ratio = ($e - $ce ) / $self->{cellsize};
@@ -367,7 +367,6 @@ sub cell_elevation
 	}
 	if( !defined $fn ) 
 	{
-		print "DANG!!!! - gave up\n";
 		# give up 
 		return;
 	}
@@ -380,8 +379,10 @@ sub cell_elevation
 
 sub load_file {
 	my( $self, $fn, $model, $file_n, $file_e ) = @_;
-	print "LOADING LIDAR: $fn\n";
 
+	my $info = "Loading $model LIDAR \"$fn\":";
+	print "\n";
+	print $info;
 	open( my $hfh, "<", $fn ) || die "can't read $fn";
 	my @lines = <$hfh>;
 	close $hfh;
@@ -402,7 +403,10 @@ sub load_file {
 
 	for( my $i=6; $i<scalar(@lines); ++$i )
 	{
-		if( $i%1000==6) { print "{$i}"; }
+		if( $i%100==6 ) { 
+			my $ratio = ($i-6)/(scalar(@lines)-6);
+			print sprintf( "\r%s %d%%", $info, $ratio*100);
+		}
 		my $line = $lines[$i];
 		$line =~ s/\n//g;
 		$line =~ s/\r//g;
@@ -414,7 +418,7 @@ sub load_file {
 			$self->{cells}->{$model}->{ $file_n + ($lidar->{NROWS}-1-($i-6))*$self->{cellsize} }->{ $file_e + $j*$self->{cellsize} } = $row[$j];
 		}
 	}
-	print "LOADED\n";
+	print "\n";
 	$self->{loaded}->{$fn} = 1;
 }
 

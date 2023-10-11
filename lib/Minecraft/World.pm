@@ -66,6 +66,12 @@ sub add_sign
 
 	return $self->block_region( $x,$y,$z )->add_sign( c($x,$y,$z), $x,$z, $label );
 }
+sub add_beacon
+{
+	my( $self,   $x,$y,$z, $label, $colour ) = @_;
+
+	return $self->block_region( $x,$y,$z )->add_beacon( c($x,$y,$z), $x,$z, $label, $colour );
+}
 sub set_light
 {
 	my( $self,   $x,$y,$z, $level ) = @_;
@@ -107,7 +113,7 @@ sub save
 	
 	if( $self->{level}->{_changed} )
 	{
-		print "SAVING LEVEL.DAT\n";
+		# print "SAVING LEVEL.DAT\n";
 		$self->save_level;
 		$acted = 1;
 	}
@@ -119,11 +125,11 @@ sub save
 			if( $self->{regions}->{$r_z}->{$r_x}->{_changed} )
 			{
 				my $filename = "r.$r_x.$r_z.mca";
-				print "SAVING REGION $filename .. ";
+				# print "SAVING REGION $filename .. ";
 				$self->{regions}->{$r_z}->{$r_x}->to_file( $self->{dir}."/region/$filename" ); 
 				$self->{regions}->{$r_z}->{$r_x}->{_changed} = 0;
 				$acted = 1;
-				print "done\n";
+				# print "done\n";
 			}
 		}
 	}
@@ -194,7 +200,7 @@ sub region
 			print "LOADING REGION $r_x,$r_z .. ";
 			$self->{regions}->{$r_z}->{$r_x} = Minecraft::Region->from_file( $file, $r_x,$r_z );
 			$self->{regions}->{$r_z}->{$r_x}->{_changed} = 0;
-			print "done\n";
+			# print "done\n";
 		}
 		else
 		{
@@ -210,7 +216,7 @@ sub init_region
 {
 	my( $self, $r_x, $r_z ) = @_;
 
-	print "INIT REGION $r_x,$r_z .. ";
+	# print "INIT REGION $r_x,$r_z .. ";
 
 	my %opts = %{$self->{opts}};
 	$opts{r_x} = $r_x;	
@@ -221,7 +227,7 @@ sub init_region
 		&{$self->{opts}->{init_region}}( $self->{regions}->{$r_z}->{$r_x}, $r_x, $r_z );
 	}
 	$self->{regions}->{$r_z}->{$r_x}->{_changed} = 1;
-	print "done\n";
+	# print "done\n";
 }
 
 1;

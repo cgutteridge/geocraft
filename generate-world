@@ -9,6 +9,10 @@ use Getopt::Long;
 use WikiPoints;
 use StreetSigns;
 
+use Carp qw(confess cluck);
+$SIG{__WARN__} = 'cluck';
+$SIG{__DIE__} = 'confess';
+
 use strict;
 use warnings;
 
@@ -332,7 +336,7 @@ print "OFFSET_E : ".$OPTS->{OFFSET_E}."\n";
 			push @$points, \@ll_lab;
 		}
 		foreach my $point ( @$points ) {
-			$p->add_point_ll( @$point ); # lat,long,label
+			$p->add_point_ll( @$point ); # lat,long,label, beacon colour
 		}
 	}
 

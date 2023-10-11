@@ -57,6 +57,7 @@ sub write_status {
   	close $fh;
 }
 
+# returns absolute grid position, not minecraft position
 sub ll_to_grid
 {
 	my( $self, $lat, $long ) = @_;
@@ -126,16 +127,16 @@ sub grid_to_ll
 
 sub add_point_ll
 {
-	my( $self, $lat,$long, $label ) = @_;
+	my( $self, $lat,$long, $label, $beam_colour ) = @_;
 
 	my( $e, $n ) = $self->ll_to_grid( $lat,$long );
 
-	$self->add_point_en( $e, $n, $label );
+	$self->add_point_en( $e, $n, $label, $beam_colour );
 }
 
 sub add_point_en 
 {
-	my( $self, $e,$n, $label ) = @_;
+	my( $self, $e,$n, $label, $beam_colour ) = @_;
 
 	my $actual_x = $e - $self->{opts}->{OFFSET_E};
 	my $actual_z = -$n + $self->{opts}->{OFFSET_N};
@@ -146,12 +147,12 @@ sub add_point_en
 #		$transformed_z = $transformed_z / $opts{SCALE};
 #	}
 
-	$self->add_point( $actual_x,$actual_z, $label );
+	$self->add_point( $actual_x,$actual_z, $label, $beam_colour );
 }
 
 sub add_point
 {
-	my( $self, $x,$z, $label ) = @_;
+	my( $self, $x,$z, $label, $beam_colour ) = @_;
 
 	$x = int $x;
 	$z = int $z; 
@@ -159,7 +160,26 @@ sub add_point
 	if( !defined $self->{opts}->{POINTS}->{$z}->{$x} ) {
 		$self->{opts}->{POINTS}->{$z}->{$x} = [];
 	}
-	push @{$self->{opts}->{POINTS}->{$z}->{$x}}, { label=>$label, status=>"todo" };
+
+	if( defined $beam_colour && $beam_colour eq "STONE" ) {
+		push @{$self->{opts}->{POINTS}->{$z}->{$x}}, { type=>"standing-stone", status=>"todo" };
+		return; # don't add a sign
+	}
+	push @{$self->{opts}->{POINTS}->{$z}->{$x}}, { type=>"sign", label=>$label, status=>"todo" };
+
+	if( defined $beam_colour && $beam_colour eq "STONE" ) {
+		# add a beacon too if beam_colour is set. Make the beam one to the north
+		push @{$self->{opts}->{POINTS}->{$z-2}->{$x-1}}, { type=>"beacon-base", status=>"todo" };
+		push @{$self->{opts}->{POINTS}->{$z-2}->{$x  }}, { type=>"beacon-base", status=>"todo" };
+		push @{$self->{opts}->{POINTS}->{$z-2}->{$x+1}}, { type=>"beacon-base", status=>"todo" };
+		push @{$self->{opts}->{POINTS}->{$z-1}->{$x-1}}, { type=>"beacon-base", status=>"todo" };
+		push @{$self->{opts}->{POINTS}->{$z-1}->{$x  }}, { type=>"beacon", beam_colour=>$beam_colour, status=>"todo" };
+		push @{$self->{opts}->{POINTS}->{$z-1}->{$x+1}}, { type=>"beacon-base", status=>"todo" };
+		push @{$self->{opts}->{POINTS}->{$z  }->{$x-1}}, { type=>"beacon-base", status=>"todo" };
+		push @{$self->{opts}->{POINTS}->{$z  }->{$x  }}, { type=>"beacon-base", status=>"todo" };
+		push @{$self->{opts}->{POINTS}->{$z  }->{$x+1}}, { type=>"beacon-base", status=>"todo" };
+	}
+	
 }
 		
 	
@@ -186,6 +206,18 @@ sub context
 
 	my $dsm = $self->elevation->ll( "DSM", $lat, $long );
 	my $dtm = $self->elevation->ll( "DTM", $lat, $long );
+	my $dsm_available = 1;
+	my $dtm_available = 1;
+	if( !defined $dtm ) {
+		$dtm_available = 0;
+		$dtm = 0;
+		$dsm = 0;
+	}
+	if( !defined $dsm ) {
+		$dsm_available = 0;
+		$dtm = 0;
+		$dsm = 0;
+	}
 	if( defined $dsm && defined $opts{SCALE} )
 	{
 		$dsm = $dsm * $opts{SCALE};
@@ -218,6 +250,8 @@ sub context
 		northing => $n,
 		lat => $lat,
 		long => $long,
+		dsm_available => $dsm_available,
+		dtm_available => $dtm_available,
 		x => $x,
 		z => $z,
 	}, "Minecraft::Context";
@@ -310,24 +344,28 @@ sub elevation {
 
 sub continue {
 	my( $self ) = @_;
-	# load config
 
 	# set autoflush to show every dot as it appears.
 	my $old_fh = select(STDOUT);
 	$| = 1;
 	select($old_fh); 
 
-	$self->{maptiles} = new Minecraft::MapTiles(
-		zoom=>$self->{opts}->{MAP_ZOOM},
-		spread=>3,
-		width=>256,
-		height=>256,
-		dir=>"$FindBin::Bin/var/tiles", 
-		url=>"http://b.tile.openstreetmap.org/",
-		default_block=>"DEFAULT",
-		colours_file=>$self->{opts}->{COLOURS_FILE},
-	);
-
+	if( 0 ) {
+		$self->{maptiles} = new Minecraft::MapTiles(
+			zoom=>$self->{opts}->{MAP_ZOOM},
+			spread=>3,
+			width=>256,
+			height=>256,
+			dir=>"$FindBin::Bin/var/tiles", 
+			url=>"http://b.tile.openstreetmap.org/",
+			default_block=>"DEFAULT",
+			colours_file=>$self->{opts}->{COLOURS_FILE},
+		);
+	} else {
+		
+		$self->{maptiles} = new Minecraft::VectorMap();
+	}
+	
 
 	Minecraft::Config::load_config( $self->{opts}->{BLOCKS_FILE} );
 	 
@@ -384,20 +422,33 @@ sub continue {
 			print Dumper( $self->{opts}->{REGIONS} );
 			die "Failed to load $region_id";
 		}
-
+		$self->{maptiles}->init_region( 
+			$region_info->{x}+$self->{opts}->{OFFSET_E},
+			-$region_info->{z}+$self->{opts}->{OFFSET_N},
+			$SQUARE_SIZE,
+			$self );
+			
 		my $start_t = time();
-		print "Doing: #".($todo_at_start_count-scalar @todo)." of $todo_at_start_count areas of ${SQUARE_SIZE}x${SQUARE_SIZE} at ".$region_info->{x}.",".$region_info->{z}."\n";
-		for( my $z=$region_info->{z}; $z<$region_info->{z}+$SQUARE_SIZE; ++$z ) {
-			next if( $z>$self->{opts}->{NORTH} || $z<$self->{opts}->{SOUTH} );
+		my $info = sprintf( "Region #%d areas of %d of %dx%d at %d,%d: ",
+			$todo_at_start_count-scalar @todo,
+			$todo_at_start_count,
+			${SQUARE_SIZE},
+			${SQUARE_SIZE},
+		       	$region_info->{x},
+			$region_info->{z} );
+
+		# Main loop over the region
+		my $min_z = $region_info->{z};
+		$min_z = $self->{opts}->{SOUTH} if( $self->{opts}->{SOUTH} > $min_z );
+		my $max_z = $region_info->{z}+$SQUARE_SIZE-1;
+		$max_z = $self->{opts}->{NORTH} if( $self->{opts}->{NORTH} < $max_z );
+		print "\n"; # prep a line to report to.
+		for( my $z=$min_z; $z<=$max_z; ++$z ) {
+			my $ratio = ($z-$min_z)/($max_z-$min_z);
+			print sprintf( "\r%s %d%% ",$info,$ratio*100);
 			for( my $x=$region_info->{x}; $x<$region_info->{x}+$SQUARE_SIZE; ++$x ) {
 				next if( $x<$self->{opts}->{WEST} || $x>$self->{opts}->{EAST} );
 				$self->render_xz( $x,$z );
-			}
-			if( ($z%32)==0 ) { 
-				print "[".($z % $SQUARE_SIZE)."]"; 
-			}
-			else { 
-				print "."; 
 			}
 		}		
 		print " (".(time()-$start_t)." seconds)";
@@ -421,10 +472,18 @@ sub continue {
 my $TYPE_DEFAULT = {
 DEFAULT=>1,
 GRASS=>2,
+LAWN=>2,
+WETLAND=>2,
+HEATH=>2,
+WOOD=>2,
 CHURCH=>98,
 BUILDING=>45,
 WATER=>9,
 ROAD=>159.07,
+PATH=>1.01,
+FANCYROAD=>251.15,
+TRACK=>3.01,
+PAVEMENT=>159.07,
 ALLOTMENT=>3.01,
 SAND=>12,
 CARPARK=>159.08,
@@ -435,6 +494,14 @@ AREA4=>1,
 AREA5=>1,
 AREA6=>1,
 AREA7=>1,
+RETAIL=>1,
+BUILDING_WHITE=>1,
+BUILDING_BLACK=>1,
+BUILDING_BROWN=>1,
+BUILDING_GREY=>1,
+BUILDING_SANDSTONE=>1,
+INDUSTRIAL=>1,
+SHED=>1,
 };
 
 sub render_xz
@@ -445,7 +512,6 @@ sub render_xz
 	my $block = $context->{block};
 	my $el = int $context->{elevation};
 	my $feature_height = int $context->{feature_height};
-
 
 	# we now have $block, $el, $SEA_LEVEL and $feature_height
 	# that's enough to work out what to place at this location
@@ -478,7 +544,6 @@ sub render_xz
 	# over_block: blocktype [ block ID or "DEFAULT" ]
 	# feature_filter - filter features of this height or less
 	# feature_min_height - force this min feature height even if lidar is lower
-
 	my $blocks = {};
 	my $default = $TYPE_DEFAULT->{$block};
 	if( !defined $default ) { confess "unknown block: $block"; }
@@ -557,20 +622,64 @@ sub render_xz
 		$self->{world}->set_block( $x, $y, $z, $blocks->{$offset} );
 		$maxy=$y if( $y>$maxy );
 	}
+
+
 	if( defined $self->{opts}->{POINTS}->{$z} && defined $self->{opts}->{POINTS}->{$z}->{$x} ) {
-		
 		foreach my $point ( @{$self->{opts}->{POINTS}->{$z}->{$x}} ) {
 			if( $maxy+2< $self->{opts}->{TOP_OF_WORLD} ) {
-				my $stand_y = $maxy+1; 
-				my $sign_y = $maxy+2; 
-				$maxy+=2;
-				
-				$self->{world}->set_block( $x,$stand_y,$z, 5 ); # wood for it to stand on
-	
-				my $text = $point->{label};
-				$self->{world}->add_sign( $x,$sign_y,$z, $text );
+				if( $point->{type} eq "beacon" ) {
+					# 95.x
+					# turn non air blocks into glass
+					for( my $y = 1; $y<=$maxy; $y++ ) {
+						my $block = $self->{world}->get_block( $x, $y, $z );
+						if( $block != 0 ) {
+							$self->{world}->set_block( $x, $y, $z, "95.".$point->{beam_colour} );
+						}
+					}
+					# make a beacon
+					$self->{world}->add_beacon( $x, 2, $z );
+					$self->{world}->set_block( $x, 1, $z, 57 );
+				}
+				if( $point->{type} eq "beacon" || $point->{type} eq "beacon-base" ) {
+					$self->{world}->set_block( $x, 1, $z, 57 );
+				} 
+				if( $point->{type} eq "standing-stone" ) {
+					$self->{world}->set_block( $x, $maxy+1, $z, 1 );
+					$self->{world}->set_block( $x, $maxy+2, $z, 1 );
+					$self->{world}->set_block( $x, $maxy+3, $z, 1 );
+					$maxy+=3;
+				}
+				if( $point->{type} eq "sign" ) {
+					# simple signpost
+					my $stand_y = $maxy; 
+					my $sign_y = $maxy+1; 
+					$maxy+=1;
+
+					
+					# turn the top world block to wood UNLESS it's a signpost in which case the block above the signpost
+					my $stand_type =  $self->{world}->get_block( $x,$stand_y,$z );
+					$stand_type =~ s/\..*$//; # remove subtype
+					# types used in this app that can't have a sign on top
+					# 0 air
+					# 18 leaves
+					# 31 plants
+					# 8,9 Water
+					# 10,11 Lava
+					# 63 Sign
+					# 171 carpet
+					# 78 snow
+					if( $stand_type =~ m/^(0|18|31|8|9|10|11|63|171|78)$/ ) {
+						$stand_y+=1;
+						$sign_y+=1;
+						$maxy+=1;
+						$self->{world}->set_block( $x,$stand_y,$z, 5 ); # wood for it to stand on
+					}
+					
+					my $text = $point->{label};
+					$self->{world}->add_sign( $x,$sign_y,$z, $text );
+				}
+
 				$point->{status} = "done";
-				$maxy+=2;
 			}
 		}
 	}
