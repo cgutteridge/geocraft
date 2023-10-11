@@ -160,8 +160,14 @@ sub add_point
 	if( !defined $self->{opts}->{POINTS}->{$z}->{$x} ) {
 		$self->{opts}->{POINTS}->{$z}->{$x} = [];
 	}
+
+	if( defined $beam_colour && $beam_colour eq "STONE" ) {
+		push @{$self->{opts}->{POINTS}->{$z}->{$x}}, { type=>"standing-stone", status=>"todo" };
+		return; # don't add a sign
+	}
 	push @{$self->{opts}->{POINTS}->{$z}->{$x}}, { type=>"sign", label=>$label, status=>"todo" };
-	if( defined $beam_colour ) {
+
+	if( defined $beam_colour && $beam_colour eq "STONE" ) {
 		# add a beacon too if beam_colour is set. Make the beam one to the north
 		push @{$self->{opts}->{POINTS}->{$z-2}->{$x-1}}, { type=>"beacon-base", status=>"todo" };
 		push @{$self->{opts}->{POINTS}->{$z-2}->{$x  }}, { type=>"beacon-base", status=>"todo" };
@@ -173,7 +179,6 @@ sub add_point
 		push @{$self->{opts}->{POINTS}->{$z  }->{$x  }}, { type=>"beacon-base", status=>"todo" };
 		push @{$self->{opts}->{POINTS}->{$z  }->{$x+1}}, { type=>"beacon-base", status=>"todo" };
 	}
-
 	
 }
 		
@@ -201,6 +206,18 @@ sub context
 
 	my $dsm = $self->elevation->ll( "DSM", $lat, $long );
 	my $dtm = $self->elevation->ll( "DTM", $lat, $long );
+	my $dsm_available = 1;
+	my $dtm_available = 1;
+	if( !defined $dtm ) {
+		$dtm_available = 0;
+		$dtm = 0;
+		$dsm = 0;
+	}
+	if( !defined $dsm ) {
+		$dsm_available = 0;
+		$dtm = 0;
+		$dsm = 0;
+	}
 	if( defined $dsm && defined $opts{SCALE} )
 	{
 		$dsm = $dsm * $opts{SCALE};
@@ -233,6 +250,8 @@ sub context
 		northing => $n,
 		lat => $lat,
 		long => $long,
+		dsm_available => $dsm_available,
+		dtm_available => $dtm_available,
 		x => $x,
 		z => $z,
 	}, "Minecraft::Context";
@@ -410,20 +429,26 @@ sub continue {
 			$self );
 			
 		my $start_t = time();
-		print "Doing: #".($todo_at_start_count-scalar @todo)." of $todo_at_start_count areas of ${SQUARE_SIZE}x${SQUARE_SIZE} at ".$region_info->{x}.",".$region_info->{z}."\n";
+		my $info = sprintf( "Region #%d areas of %d of %dx%d at %d,%d: ",
+			$todo_at_start_count-scalar @todo,
+			$todo_at_start_count,
+			${SQUARE_SIZE},
+			${SQUARE_SIZE},
+		       	$region_info->{x},
+			$region_info->{z} );
 
 		# Main loop over the region
-		for( my $z=$region_info->{z}; $z<$region_info->{z}+$SQUARE_SIZE; ++$z ) {
-			next if( $z>$self->{opts}->{NORTH} || $z<$self->{opts}->{SOUTH} );
+		my $min_z = $region_info->{z};
+		$min_z = $self->{opts}->{SOUTH} if( $self->{opts}->{SOUTH} > $min_z );
+		my $max_z = $region_info->{z}+$SQUARE_SIZE-1;
+		$max_z = $self->{opts}->{NORTH} if( $self->{opts}->{NORTH} < $max_z );
+		print "\n"; # prep a line to report to.
+		for( my $z=$min_z; $z<=$max_z; ++$z ) {
+			my $ratio = ($z-$min_z)/($max_z-$min_z);
+			print sprintf( "\r%s %d%% ",$info,$ratio*100);
 			for( my $x=$region_info->{x}; $x<$region_info->{x}+$SQUARE_SIZE; ++$x ) {
 				next if( $x<$self->{opts}->{WEST} || $x>$self->{opts}->{EAST} );
 				$self->render_xz( $x,$z );
-			}
-			if( ($z%32)==0 ) { 
-				print "[".($z % $SQUARE_SIZE)."]"; 
-			}
-			else { 
-				print "."; 
 			}
 		}		
 		print " (".(time()-$start_t)." seconds)";
@@ -618,20 +643,38 @@ sub render_xz
 				if( $point->{type} eq "beacon" || $point->{type} eq "beacon-base" ) {
 					$self->{world}->set_block( $x, 1, $z, 57 );
 				} 
+				if( $point->{type} eq "standing-stone" ) {
+					$self->{world}->set_block( $x, $maxy+1, $z, 1 );
+					$self->{world}->set_block( $x, $maxy+2, $z, 1 );
+					$self->{world}->set_block( $x, $maxy+3, $z, 1 );
+					$maxy+=3;
+				}
 				if( $point->{type} eq "sign" ) {
 					# simple signpost
 					my $stand_y = $maxy; 
 					my $sign_y = $maxy+1; 
 					$maxy+=1;
+
+					
 					# turn the top world block to wood UNLESS it's a signpost in which case the block above the signpost
-					if( $self->{world}->get_block( $x,$stand_y,$z ) eq "63" ) {
-						$stand_y++;
-						$sign_y++;
-						$maxy++;
+					my $stand_type =  $self->{world}->get_block( $x,$stand_y,$z );
+					$stand_type =~ s/\..*$//; # remove subtype
+					# types used in this app that can't have a sign on top
+					# 0 air
+					# 18 leaves
+					# 31 plants
+					# 8,9 Water
+					# 10,11 Lava
+					# 63 Sign
+					# 171 carpet
+					# 78 snow
+					if( $stand_type =~ m/^(0|18|31|8|9|10|11|63|171|78)$/ ) {
+						$stand_y+=1;
+						$sign_y+=1;
+						$maxy+=1;
+						$self->{world}->set_block( $x,$stand_y,$z, 5 ); # wood for it to stand on
 					}
 					
-					$self->{world}->set_block( $x,$stand_y,$z, 5 ); # wood for it to stand on
-		
 					my $text = $point->{label};
 					$self->{world}->add_sign( $x,$sign_y,$z, $text );
 				}

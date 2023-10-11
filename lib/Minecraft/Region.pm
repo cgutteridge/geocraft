@@ -274,7 +274,7 @@ sub add_sign
 	
 	$chunk->{Level}->{TileEntities}->{_type} = 10; # for the ones that got messed up
 	push @{ $chunk->{Level}->{TileEntities}->{_value} }, $data;
-	print "[ADDED SIGN ".join( "/", @lines )."]";
+	# print "[ADDED SIGN ".join( "/", @lines )."]";
 }
 
 sub add_beacon 
@@ -303,7 +303,7 @@ sub add_beacon
 
 
 
-	print "[ADDED BEACON]";
+	# print "[ADDED BEACON]";
 }
 
 sub set_block

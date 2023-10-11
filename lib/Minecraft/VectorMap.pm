@@ -20,7 +20,7 @@ sub new
 sub init_region {
 	my( $self, $region_x, $region_z, $size, $projection ) = @_;
 
-	print "INIT VECTOR REGION\n";
+	# print "INIT VECTOR REGION\n";
 
 	$self->{projection} = $projection;
 
@@ -31,7 +31,7 @@ sub init_region {
 	$self->{max_x} = $region_x+($size-1)+$edge;
 	$self->{min_z} = $region_z-($size-1)-$edge;
 	$self->{max_z} = $region_z+$edge;
-	print sprintf( "Region bounds %d,%d to %d,%d\n", $self->{min_x},$self->{min_z}, $self->{max_x},$self->{max_z});
+	# print sprintf( "Region bounds %d,%d to %d,%d\n", $self->{min_x},$self->{min_z}, $self->{max_x},$self->{max_z});
 
 	# Get the lat,long bounding box for OSM. Needs to be big enough to capture 
 	# things with long lines
@@ -56,6 +56,7 @@ sub init_region {
   way["landuse"]($lat1,$long1,$lat2,$long2);
   way["water"]($lat1,$long1,$lat2,$long2);
   way["natural"]($lat1,$long1,$lat2,$long2);
+  way["man_made"]($lat1,$long1,$lat2,$long2);
   );
 END
 
@@ -64,11 +65,12 @@ END
 		next if( $way->{nodes}->[0]->[0] != $way->{nodes}->[-1]->[0] );
 		next if( $way->{nodes}->[0]->[1] != $way->{nodes}->[-1]->[1] );
 
+		my $context = "WAY".$way->{id};
 		my $code = $self->tags_to_block_code($way->{tags});
 		next unless defined $code;
 
 		my $polygon = $self->nodes_to_polygon( @{$way->{nodes}} );
-		$self->draw_poly( $code, $polygon );
+		$self->draw_poly( $context, $code, $polygon );
 	}
 
 	# $self->map_debug;
@@ -82,27 +84,33 @@ END
   relation["landuse"]($lat1,$long1,$lat2,$long2);
   relation["water"]($lat1,$long1,$lat2,$long2);
   relation["natural"]($lat1,$long1,$lat2,$long2);
+  relation["man_made"]($lat1,$long1,$lat2,$long2);
   );
 END
 	foreach my $relation ( values %$relations ) {
 
 		my $code = $self->tags_to_block_code($relation->{tags});
 		next unless defined $code;
+		# what if it's not a multipolygon?
+		if( $relation->{tags}->{type} ne "multipolygon" ) {
+			print Dumper( $relation->{tags} );
+			die " NOT A MULTIPOLYGON";
+		}
+		my $context = "REL:".$relation->{id};
 
 		my $polys = { outer=>[], inner=>[] };
 		foreach my $mode ( qw/ outer inner / ) {
-			foreach my $way ( @{$relation->{members}->{$mode}} ) {
+			foreach my $way ( @{$relation->{members_ll}->{$mode}} ) {
 				# only do ways with a bounding loop
-				# if( $way->{nodes}->[0]->[0] != $way->{nodes}->[-1]->[0] || $way->{nodes}->[0]->[1] != $way->{nodes}->[-1]->[1] ) {
-					# print "Skipping $mode way\n";
-					# next;
-					# }
+				if( $way->[0]->[0] != $way->[-1]->[0] || $way->[0]->[1] != $way->[-1]->[1] ) {
+					die "non loop $mode way\n";
+				}
 
-				my $polygon = $self->nodes_to_polygon( @{$way->{nodes}} );
+				my $polygon = $self->nodes_to_polygon( @{$way} );
 				push @{$polys->{$mode}}, $polygon;
 			}
 		}
-		$self->draw_multipoly( $code, $polys->{outer}, $polys->{inner} );
+		$self->draw_multipoly( $context, $code, $polys->{outer}, $polys->{inner} );
 	}
 
 
@@ -114,34 +122,47 @@ END
   way["waterway"]($lat1,$long1,$lat2,$long2);
 );
 END
-	#$self->map_debug;
+	# $self->map_debug;
 
 
 	# Ignored waterways include: pressurised canoe_pass fairway fish_pass
 	foreach my $river ( values %$roads_and_rivers ) {
 		next if( !defined $river->{tags}->{waterway} );
+		next if( defined $river->{tags}->{tunnel} );
+		next if( defined $river->{tags}->{layer} && $river->{tags}->{layer}<0 );
+
+		my $context = "RIVER:".$river->{id};
 		my $width = 1.5;
 		next if( $river->{tags}->{waterway} !~ m/^(river|stream|tidal_channel|canal|drain|ditch)$/ );
 		if(  $river->{tags}->{waterway} eq "river" ) {
 			$width=8;
 		}
 		my @route = $self->nodes_to_grid( @{$river->{nodes}} );
-		$self->draw_route( "WATER", $width, @route );
+		$self->draw_route( $context, "WATER", $width, @route );
 	}
 	
 
 	# PAVEMENT
 	foreach my $road ( values %$roads_and_rivers ) {
 		next if( !defined $road->{tags}->{highway} );
+		next if( defined $road->{tags}->{tunnel} );
+		next if( defined $road->{tags}->{layer} && $road->{tags}->{layer}<0 );
 		next if( $road->{tags}->{highway} =~ m/^(pedestrian|driveway|track|raceway|footway|bridleway|steps|corridor|path|via_ferrata|cycleway|proposed|construction|elevator|platform|service|motorway|services)$/ );
+		# areas don't get pavements
 		next if( defined $road->{tags}->{area} && $road->{tags}->{area} eq "yes" );
+
+		my $context = "PAVE:".$road->{id};
 		my $width = 6;
 		my @route = $self->nodes_to_grid( @{$road->{nodes}} );
-		$self->draw_route( "PAVEMENT", $width, @route );
+		$self->draw_route( $context, "PAVEMENT", $width, @route );
 	}
 	# ROADS INNER
 	foreach my $road ( values %$roads_and_rivers ) {
 		next if( !defined $road->{tags}->{highway} );
+		next if( defined $road->{tags}->{tunnel} );
+		next if( defined $road->{tags}->{layer} && $road->{tags}->{layer}<0 );
+
+		my $context = "ROAD:".$road->{id};
 		my $width = 4;
 		my $code = "ROAD";
 		next if( $road->{tags}->{highway} =~ m/^(via_ferrata|proposed|construction|services|elevator)$/ );
@@ -171,10 +192,10 @@ END
 		}
 		if( defined $road->{tags}->{area} && $road->{tags}->{area} eq "yes" ) {
 			my $polygon = $self->nodes_to_polygon( @{$road->{nodes}} );
-			$self->draw_poly( $code, $polygon );
+			$self->draw_poly( $context, $code, $polygon );
 		} else {
 			my @route = $self->nodes_to_grid( @{$road->{nodes}} );
-			$self->draw_route( $code, $width, @route );
+			$self->draw_route( $context, $code, $width, @route );
 		}
 	}
 
@@ -191,7 +212,16 @@ END
 			$self->set($region_x2,$z,"FANCYROAD");
 		}
 	}
-	
+
+	if( 0 ) {
+		# debug the feature that set each location on the region
+		foreach my $z ( sort keys %{$self->{context}} ) {
+			foreach my $x ( sort keys %{ $self->{context}->{$z}} ) {
+				print "$x,$z - ".$self->{context}->{$z}->{$x}."\n";
+			}
+		}
+	}
+
 }
 
 
@@ -241,21 +271,6 @@ my $SCORE = {
 	DEFAULT=>0,
 };
 
-sub set {
-	my( $self,$x,$z,$code ) = @_;
-
-        my @cc = $self->{projection}->ll_to_grid(50.93562,-1.3961);
-
-	my $current = $self->block_at_grid($x,$z);
-	if( !defined $SCORE->{$code} ) { die "No SCORE for $code"; }
-	if( $SCORE->{$current} <= $SCORE->{$code} ) {
-		$self->{map}->{$z}->{$x} = $code;
-	}
-	else {
-		#print "won't overwrite $current with $code\n";
-	}
-}
-			
 sub extrude {
 	my( $self, $from, $to, $left_width, $right_width ) = @_;
 
@@ -301,34 +316,6 @@ sub block_at_grid {
 	}
 	return "DEFAULT";
 }
-sub draw_route {
-	my( $self, $code, $width, @route ) = @_;
-
-	my $from = $route[0];
-	for( my $i=1;$i<scalar @route; $i++ ) {
-		my $to = $route[$i];
-		my $polygon = $self->extrude( $from, $to, $width, $width );
-		$self->draw_poly( $code, $polygon );
-		$self->draw_circle( $code, $from, $width );
-		$from = $to;	
-	}
-	$self->draw_circle( $code, $from, $width );
-}
-
-sub draw_circle {
-	my( $self, $code, $centre, $radius ) = @_;
-
-	for(my $z_off = -$radius; $z_off<=$radius;$z_off++ ) {
-		my $z = int $centre->[1]+$z_off;
-		next if $z < $self->{min_z};
-		next if $z > $self->{max_z};
-		my $width = sqrt( $radius*$radius - $z_off*$z_off );
-		for( my $x_off=0; $x_off<$width; $x_off++ ) {
-			$self->set(int $centre->[0]-$x_off,$z,$code);
-			$self->set(int $centre->[0]+$x_off,$z,$code);
-		}
-	}
-}
 
 sub poly_to_raster {
 	my( $self, $poly ) = @_;
@@ -341,7 +328,7 @@ sub poly_to_raster {
 		my $toggles = {};
 		# our raster line is about $z+0.5
 		# we use a slightly off value to avoid any people who use round numbers as we might 
-		# not properly intersect a perfectly horizontal parallel line<F2>
+		# not properly intersect a perfectly horizontal parallel line at 0.5m off a grid line
 		my $raster_z = $z+0.5000123123123123;
 		# let's see which lines it intersects with and if so where.
 		my @x_intersect_points = ();
@@ -385,41 +372,91 @@ sub poly_to_raster {
 	return $raster;
 }
 
+# MAP ALTERING FUNCTIONS
+
+sub set {
+	my( $self,$context,$x,$z,$code ) = @_;
+
+        my @cc = $self->{projection}->ll_to_grid(50.93562,-1.3961);
+
+	my $current = $self->block_at_grid($x,$z);
+	if( !defined $SCORE->{$code} ) { die "No SCORE for $code"; }
+	if( $SCORE->{$current} <= $SCORE->{$code} ) {
+		$self->{map}->{$z}->{$x} = $code;
+		$self->{context}->{$z}->{$x} = $context;
+	}
+	else {
+		#print "won't overwrite $current with $code\n";
+	}
+}
+			
+sub draw_route {
+	my( $self, $context, $code, $width, @route ) = @_;
+
+	my $from = $route[0];
+	for( my $i=1;$i<scalar @route; $i++ ) {
+		my $to = $route[$i];
+		my $polygon = $self->extrude( $from, $to, $width, $width );
+		$self->draw_poly( $context, $code, $polygon );
+		$self->draw_circle( $context, $code, $from, $width );
+		$from = $to;	
+	}
+	$self->draw_circle( $context, $code, $from, $width );
+}
+
+sub draw_circle {
+	my( $self, $context, $code, $centre, $radius ) = @_;
+
+	for(my $z_off = -$radius; $z_off<=$radius;$z_off++ ) {
+		my $z = int $centre->[1]+$z_off;
+		next if $z < $self->{min_z};
+		next if $z > $self->{max_z};
+		my $width = sqrt( $radius*$radius - $z_off*$z_off );
+		for( my $x_off=0; $x_off<$width; $x_off++ ) {
+			$self->set( $context,int $centre->[0]-$x_off,$z,$code);
+			$self->set( $context,int $centre->[0]+$x_off,$z,$code);
+		}
+	}
+}
 
 sub draw_poly {
-	my( $self, $code, $poly ) = @_;
+	my( $self, $context, $code, $poly ) = @_;
 
 	my $raster = $self->poly_to_raster( $poly );
-	$self->draw_raster( $code, $raster );
+	$self->draw_raster( $context, $code, $raster );
 }
 
 # outer - list of polygons to draw
 # inner - list of holes in polygons
 sub draw_multipoly {
-	my( $self, $code, $outer_polys, $inner_polys ) = @_;
+	my( $self, $context, $code, $outer_polys, $inner_polys ) = @_;
 
 	my $raster = bless {}, "Minecraft::VectorMap::Raster";
 	foreach my $poly ( @{$outer_polys} ) {
 		my $raster2 = $self->poly_to_raster( $poly );
 		$raster->add( $raster2 );
+		# if( $context eq "REL:3535360" ) { print "ADD REL:3535360\n"; $raster2->debug(); }
 	}
 	foreach my $poly ( @{$inner_polys} ) {
-		$raster->subtract( $self->poly_to_raster( $poly ) );
+		my $raster2 = $self->poly_to_raster( $poly );
+		$raster->subtract( $raster2 );
 	}
-	$self->draw_raster( $code, $raster );
+	$self->draw_raster( $context, $code, $raster );
+	# if( $context eq "REL:3535360" ) { print "FINAL REL:3535360\n"; $raster->debug(); }
 }
 
 
 sub draw_raster {
-	my( $self, $code, $raster ) = @_;
+	my( $self, $context, $code, $raster ) = @_;
 
 	foreach my $z ( keys %$raster ) {
 		foreach my $x( keys %{$raster->{$z}} ) {
-			$self->set($x,$z,$code);
+			$self->set( $context,$x,$z,$code);
 		}
 	}
 }
 
+# /MAP ALTERING FUNCTIONS
 
 sub get_relations {
 	my( $self,$search ) = @_;
@@ -432,7 +469,7 @@ out body;
 ";
 	my $url = "https://overpass-api.de/api/interpreter?data=".urlencode($query);
 	
-	print "Getting URL: $url\n";
+	# print "Getting URL: $url\n";
 	my $json = `curl -L -s '$url' `;
 	my $info = decode_json $json;
 	my $nodes = {};
@@ -444,26 +481,32 @@ out body;
 	}
 	foreach my $element ( @{$info->{elements}} ) {
 		next unless ( $element->{type} eq "way" );
-		my @node_ids = @{$element->{nodes}};
-		$element->{nodes} = [];
-		foreach my $node_id ( @node_ids ) {
-			push @{$element->{nodes}}, $nodes->{$node_id};
-		}
 		$ways->{$element->{id}} = $element;
 	}
-	# loop over relations
-	foreach my $element ( @{$info->{elements}} ) {
-		next unless ( $element->{type} eq "relation" );
 
-		my @members = @{$element->{members}};
-		$element->{members} = { outer=>[], inner=>[] };
+	# loop over relations
+	foreach my $relation ( @{$info->{elements}} ) {
+		next unless ( $relation->{type} eq "relation" );
+
+		my @members = @{$relation->{members}};
+		$relation->{member_ids} = { outer=>[], inner=>[] };
+
 		# we only care about way members, not node members
-		
 		foreach my $member ( @members ) {
 			next unless $member->{type} eq "way";
-
+			if( $member->{type} eq "relation" ) { 
+				print Dumper( $member );
+				die "Ooops; relation in relation, we don't know how to handle that just yet";
+			}
+			# get the list of lat longs from the nodes from the ways, 
+			# DO NOT COPY REFERENCES as that was bad
+			# don't care about any other info on the ways
 			my $way = $ways->{$member->{ref}};
-			push @{$element->{members}->{$member->{role}}}, $way;
+			my $my_way = [];
+			foreach my $node_id ( @{$way->{nodes}} ) {
+				push @$my_way, $node_id;
+			}
+			push @{$relation->{member_ids}->{$member->{role}}}, $my_way;
     		}
 
 		# next we should merge ways of inner and outers
@@ -471,15 +514,24 @@ out body;
 			while(1) {
 				my $before;
 				my $after;
+				my $reverse = 0;
 				# find a merge pair; where one ends with what another starts with
-				SEEK: for( my $i=0; $i<scalar @{$element->{members}->{$role}}; $i++ ) {
-					for( my $j=0; $j<scalar @{$element->{members}->{$role}}; $j++ ) {
+				SEEK: for( my $i=0; $i<scalar @{$relation->{member_ids}->{$role}}; $i++ ) {
+					for( my $j=0; $j<scalar @{$relation->{member_ids}->{$role}}; $j++ ) {
 						next if $i==$j; # don't link to yourself
-						my $i_end   = join( ",", @{$element->{members}->{$role}->[$i]->{nodes}->[-1]} );
-						my $j_start = join( ",", @{$element->{members}->{$role}->[$j]->{nodes}->[0]} );
+						my $i_end   = $relation->{member_ids}->{$role}->[$i]->[-1];
+						my $j_start = $relation->{member_ids}->{$role}->[$j]->[0];
 						if( $i_end eq $j_start ) { 
 							$before = $i;
 							$after = $j;
+							last SEEK;
+						}
+						# ways can join either way round if the two ends match then reverse the second way
+						my $j_end = $relation->{member_ids}->{$role}->[$j]->[-1];
+						if( $i_end eq $j_end ) { 
+							$before = $i;
+							$after = $j;
+							$reverse = 1;
 							last SEEK;
 						}
 					}
@@ -487,20 +539,40 @@ out body;
 
 				# if not exit loop
 				last unless defined $before;		
-	
+
+
 				# merge the pair
 				# add all nodes from after to before 
-				my @after_nodes = @{$element->{members}->{$role}->[$after]->{nodes}};
 				# (except the first one)
-				shift @after_nodes;
+				my @after_nodes = @{$relation->{member_ids}->{$role}->[$after]};
+				if( $reverse ) {
+					@after_nodes = reverse @after_nodes;
+				}
 				for( my $i=1; $i<scalar @after_nodes; ++$i ) {
-					push @{$element->{members}->{$role}->[$before]->{nodes}}, $after_nodes[$i];
+					push @{$relation->{member_ids}->{$role}->[$before]}, $after_nodes[$i];
 				}
 				# now remove the one we plundered
-				splice( @{$element->{members}->{$role}}, $after, 1 );
+				splice( @{$relation->{member_ids}->{$role}}, $after, 1 );
 			}
 		}
-		$relations->{$element->{id}} = $element;
+
+		# create node lists from node_id lists
+		foreach my $role ( qw/ inner outer / ) {
+			$relation->{members_ll}->{$role} = [];
+			foreach my $way ( @{$relation->{member_ids}->{$role}} ) { 
+				my $way_ll = [];
+				foreach my $node_id ( @$way ) {
+					push @$way_ll, $nodes->{$node_id};
+				}
+				push @{$relation->{members_ll}->{$role}}, $way_ll;
+			}
+		}
+		#$nodes->{$node_id};
+		#		# 13705602 << we want this ID!
+		#		if( $node_id == "13705602" ) { die "yay"; }
+
+
+		$relations->{$relation->{id}} = $relation;
 	}
 
 	return $relations;
@@ -517,7 +589,7 @@ out body;
 ";
 	my $url = "https://overpass-api.de/api/interpreter?data=".urlencode($query);
 	
-	print "Getting URL: $url\n";
+	# print "Getting URL: $url\n";
 	my $json = `curl -L -s '$url' `;
 	my $info = decode_json $json;
 
@@ -612,6 +684,9 @@ sub tags_to_block_code {
 		if( $tags->{building} =~ m/^(church)$/ ) {
 			$code = "CHURCH";
 		}
+		if( defined $tags->{amenity} && $tags->{amenity} eq "place_of_worship" ) {
+			$code = "CHURCH";
+		}
 		if( $tags->{building} =~ m/^(retail|pub)$/ ) {
 			$code = "RETAIL";
 		}
@@ -629,7 +704,7 @@ sub tags_to_block_code {
 		if( $tags->{"building:material"} =~ m/^(stone)$/ ) {
 			$code = "CHURCH";
 		}
-		if( $tags->{"building:material"} =~ m/^(stone)$/ ) {
+		if( $tags->{"building:material"} =~ m/^(sandstone)$/ ) {
 			$code = "BUILDING_SANDSTONE";
 		}
 	}
@@ -650,6 +725,12 @@ sub tags_to_block_code {
 			$code = "BUILDING_BLACK";
 		}
 	}
+	if( defined $tags->{"man_made"} ) {
+		if( $tags->{"man_made"} =~ m/^(bridge)$/ ) {
+			$code = "CHURCH";
+		}
+	}
+
 	if( defined $tags->{water} ) {
 		$code = "WATER";
 	}
