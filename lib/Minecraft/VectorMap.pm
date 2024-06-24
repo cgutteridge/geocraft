@@ -93,8 +93,7 @@ END
 		next unless defined $code;
 		# what if it's not a multipolygon?
 		if( $relation->{tags}->{type} ne "multipolygon" ) {
-			print Dumper( $relation->{tags} );
-			die " NOT A MULTIPOLYGON";
+            next;
 		}
 		my $context = "REL:".$relation->{id};
 

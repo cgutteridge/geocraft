@@ -8,6 +8,7 @@ use Data::Dumper;
 use POSIX;
 use JSON::PP;
 use utf8;
+use Carp;
 
 #coordinates are relative to the region
 
@@ -51,7 +52,6 @@ sub chunk_sections
 sub block_section
 {
 	my($self, $rel_x,$y,$rel_z ) = @_;
-
 	# work out which chunk
 	my( $chunk_x, $chunk_z ) = $self->chunk_xz($rel_x,$rel_z);
 	my $section_y = POSIX::floor($y/16);
@@ -72,6 +72,8 @@ sub block_section
 sub add_section
 {
 	my($self, $rel_x,$y,$rel_z ) = @_;
+
+    return if( $y<0 );
 
 	# work out which chunk
 	my( $chunk_x, $chunk_z ) = $self->chunk_xz($rel_x,$rel_z);
@@ -136,10 +138,8 @@ sub add_layer
 {
 	my( $self, $y, $type ) = @_;
 
-#print "ADD LAYER:$y,$type\n";
 	for( my $rel_z=0;$rel_z<512;++$rel_z) {
 		for( my $rel_x=0;$rel_x<512;++$rel_x) {
-#print "ADD LAYER BLOCK: $rel_x,$y,$rel_z\n";
 			$self->set_block( $rel_x,$y,$rel_z, $type );
 		}
 	}
@@ -310,6 +310,8 @@ sub set_block
 {
 	my( $self,   $rel_x,$y,$rel_z, $type ) = @_;
 
+    return if( $y<0 ); # don't set blocks out of the bottom of the map
+
 	my $subtype = 0;
 	if( int($type) != $type )
 	{
@@ -319,15 +321,20 @@ sub set_block
 	if( $type != ($type&255) ) { die "bad type passed to set_block: $type"; }
 	if( $subtype != ($subtype&15) ) { die "bad subtype passed to set_block: $subtype"; }
 
-#print "ADD BLOCK: $rel_x,$y,$rel_z {$type}\n";
 	my $section = $self->block_section($rel_x,$y,$rel_z);
+
 	if( !$section ) 
 	{ 
 		$section = $self->add_section($rel_x,$y,$rel_z);
 	}
 	my $offset = $self->block_offset($rel_x,$y,$rel_z);
-#print "OFFSET: $offset\n\n";
 
+    if( !defined $section->{Blocks}|| !defined $section->{Blocks}->{_value} ) {
+        print "BAD SECTION $rel_x,$y,$rel_z\n";
+        print Dumper( $section );
+        confess();
+        exit;
+    }
 	substr( $section->{Blocks}->{_value}, $offset, 1 ) = chr($type);
 
 	# set subtype	
