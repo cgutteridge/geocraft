@@ -58,9 +58,17 @@ sub url_encode {
 
 sub get_url
 {
-	my( $self, $url ) = @_;
+	my( $self, $url, $reqestData, $headers ) = @_;
 
 	my $cmd = "curl -s '$url'";
+    if( defined $reqestData ) {
+        $cmd .= " --data '$reqestData'";
+    }
+    if( defined $headers ) {
+        foreach my $header ( @$headers ) {
+            $cmd.= " -H '$header'";
+        }
+    }
 	print $cmd."\n";
 	my $data = `$cmd`;
 	return $data;
@@ -69,7 +77,7 @@ sub download_url
 {
 	my( $self, $url, $file ) = @_;
 
-	my $cmd = "curl -s '$url' > $file";
+	my $cmd = "curl -s '$url' > '$file'";
 	print $cmd."\n";
 	my $data = `$cmd`;
 	return $data;
@@ -107,81 +115,63 @@ sub download
 		my $n1 = $bottom + 50;
 		my $e2 = $left   + $SCALE_EW - 50;
 		my $n2 = $bottom + $SCALE_NS - 50;
-	
-		my $aoi = {"geometryType"=>"esriGeometryPolygon","features"=>[{"geometry"=>{"rings"=>[[]],"spatialReference"=>{"wkid"=>27700,"latestWkid"=>27700}}}],"sr"=>{"wkid"=>27700,"latestWkid"=>27700}};
-		push @{$aoi->{features}->[0]->{geometry}->{rings}->[0]}, [ $e1, $n1 ];
-		push @{$aoi->{features}->[0]->{geometry}->{rings}->[0]}, [ $e2, $n1 ];
-		push @{$aoi->{features}->[0]->{geometry}->{rings}->[0]}, [ $e2, $n2 ];
-		push @{$aoi->{features}->[0]->{geometry}->{rings}->[0]}, [ $e1, $n2 ];
-		my $submit_job_url = "https://environment.data.gov.uk/arcgis/rest/services/gp/DataDownload/GPServer/DataDownload/submitJob?f=json&SourceToken=&OutputFormat=0&RequestMode=SURVEY&AOI=".url_encode(encode_json( $aoi ));
-		my $submit_job_response = $self->get_url( $submit_job_url );
-		my $submit_job = decode_json( $submit_job_response );
-		# we expect back: {"jobId":"jcc3fa88c8eba49db915cd7ff0c701774","jobStatus":"esriJobSubmitted"}
-		my $jobid = $submit_job->{jobId};
-		# print "JOB:$jobid\n";
-	
-		my $JOB_WAIT_MAX = 60;
-		my $JOB_WAIT_INTERVAL = 3; # lets not hammer it too hard
-	
-		my $waiting = 0;
-		my $done = 0;
-		while( !$done && $waiting <= $JOB_WAIT_MAX ) {
-			sleep( $JOB_WAIT_INTERVAL );
-			$waiting += $JOB_WAIT_INTERVAL;
-			my $job_watch_url = "https://environment.data.gov.uk/arcgis/rest/services/gp/DataDownload/GPServer/DataDownload/jobs/$jobid?f=json"; #&dojo.preventCache=1550585729682
-			my $are_we_there_yet_response = $self->get_url( $job_watch_url );
-			my $are_we_there_yet = decode_json( $are_we_there_yet_response );
-			# print "".$are_we_there_yet->{jobStatus}."\n";
-			$done=1 if( $are_we_there_yet->{jobStatus} eq "esriJobSucceeded" );
-		}
-	
-		if( !$done ) {
-			print "Request to job timed out after 60 seconds.\n";
-			return;
-		}
-	
-		my $job_output_url = "https://environment.data.gov.uk/arcgis/rest/services/gp/DataDownload/GPServer/DataDownload/jobs/$jobid/results/OutputResult?f=json"; #&dojo.preventCache=1550585729682
-		my $job_output_response = $self->get_url( $job_output_url );
-		my $job_output = decode_json( $job_output_response );
-	
-		my $cat_url = $job_output->{value}->{url};
 
-		$self->download_url( $cat_url, $catalog_cache_file );
+        my $coordinates = [];
+		push @$coordinates, [reverse en_to_ll( $e1, $n1 )];
+		push @$coordinates, [reverse en_to_ll( $e2, $n1 )];
+		push @$coordinates, [reverse en_to_ll( $e2, $n2 )];
+		push @$coordinates, [reverse en_to_ll( $e1, $n2 )];
+		push @$coordinates, [reverse en_to_ll( $e1, $n1 )];
+        my $geojson = { coordinates=> [$coordinates], type=> "Polygon" };
+
+        my $endpoint = "https://environment.data.gov.uk/backend/catalog/api/tiles/collections/survey/search";
+
+		my $response = $self->get_url( $endpoint, encode_json( $geojson), ["Content-type: application/geo+json"] );
+        open( my $fh, ">:utf8", $catalog_cache_file ) || die "can't write $catalog_cache_file: $?";
+        print {$fh} $response;
+        close $fh;
 	}
 
 	if( !$self->{loaded}->{$catalog_cache_file} ) {
 		open( my $cat_fh, "<:utf8", $catalog_cache_file ) || die "Can't read $catalog_cache_file: $!";
 		my $catalog_raw = join( "", <$cat_fh> );
 		close $cat_fh;
+
+        # format of result
+        #                {
+        #                   'product' => { 'label' => 'LIDAR Composite DTM', 'id' => 'lidar_composite_dtm' },
+        #                   'year' => { 'label' => '2022', 'id' => '2022' },
+        #                   'tile' => { 'id' => 'SU4015', 'label' => 'SU41nw' },
+        #                   'label' => 'lidar_composite_dtm-2022-1m-SU41nw',
+        #                   'uri' => 'https://api.agrimetrics.co.uk/tiles/collections/survey/lidar_composite_dtm/2022/1/SU4015',
+        #                   'resolution' => { 'label' => '1m', 'id' => '1' }
+        #                 },
+
+        # datasets->{ product_id }->{ year }->{ resolution_id }->{tile_id}  = url;
 	
 		my $catalog = decode_json( $catalog_raw );
 		my $datasets = {};
-		foreach my $cdataset ( @{$catalog->{data}} ) {
-			my $dataset = {};
-			foreach my $cyear ( @{$cdataset->{years}} ) {
-				my $year = {};
-				foreach my $cres ( @{$cyear->{resolutions}} ) {
-					my $res = {};
-					foreach my $ctile ( @{$cres->{tiles}} ) {
-						$res->{$ctile->{tileName}} = $ctile->{url};
-					}
-					$year->{$cres->{resolutionName}} = $res;
-				}
-				$dataset->{$cyear->{year}} = $year;
-			}
-				
-			$datasets->{$cdataset->{productName}} = $dataset;
+		foreach my $result ( @{$catalog->{results}} ) {
+            $datasets->{ $result->{product}->{id} }->{ $result->{year}->{id} }->{ $result->{resolution}->{id} }->{ $result->{tile}->{id} } = $result->{uri}."?subscription-key=public";
 		}
-
 
 		$self->{loaded}->{$catalog_cache_file}=1;
 		# later maybe look at years, but with luck composite will do
 		$self->{zips}->{$code} = { DSM=>[], DTM=>[] };
+#national_lidar_programme_dtm
+#lidar_composite_dtm
+#lidar_tiles_dtm
+#
+#national_lidar_programme_first_return_dsm
+#lidar_composite_first_return_dsm
+#national_lidar_programme_dsm
+#lidar_composite_last_return_dsm
+#lidar_tiles_dsm
 
 		# this is to deal with the inconsistant naming in DEFRA DTM/DSM
 		my $SETMAP = {
-		       	"DSM"=>"LIDAR Composite Last Return DSM",
-	       		"DTM"=>"LIDAR Composite DTM" };
+		       	"DSM"=>"lidar_composite_last_return_dsm",
+	       		"DTM"=>"lidar_composite_dtm" };
 		foreach my $model_i ( qw/ DSM DTM / ) {
 			my $target_set = $SETMAP->{$model_i};
 			my $set = $datasets->{$target_set};
@@ -190,8 +180,8 @@ sub download
 			my @years = sort keys %$set;
 			my $models = $set->{$years[0]};
 			
-		       	foreach my $key ( keys %{$models->{"$model_i 1M"}} ) {
-				push @{$self->{zips}->{$code}->{$model_i}}, $models->{"$model_i 1M"}->{$key};
+		    foreach my $key ( keys %{$models->{"1"}} ) {
+				push @{$self->{zips}->{$code}->{$model_i}}, $models->{"1"}->{$key};
 			}
 		}
 	}
